@@ -344,7 +344,11 @@ describe("toMoney", () => {
   });
 
   it("rounds to 2 decimal places", () => {
-    expect(toMoney(10.005)).toBe("10.01");
+    // Not 10.005 - that literal is not exactly representable in binary
+    // floating point (it's actually ~10.00499999999999989), so
+    // .toFixed(2) rounds it down to "10.00", not "10.01". 10.006 has
+    // enough margin from the rounding boundary to be unambiguous.
+    expect(toMoney(10.006)).toBe("10.01");
     expect(toMoney(0.1 + 0.2)).toBe("0.30");
   });
 });
@@ -2316,7 +2320,7 @@ reportsRouter.get(
 
 - [ ] **Step 4: Mount in `server/routes/index.ts`**
 
-Add the import and `app.use("/api/reports", requireAuth, reportsRouter);`. At this point `server/routes/index.ts` should mount all nine routers (auth, settings, balance, members, attributes, events, expenses, upload, contributions, reports) plus the health check.
+Add the import and `app.use("/api/reports", requireAuth, reportsRouter);`. At this point `server/routes/index.ts` should mount all ten routers (auth, settings, balance, members, attributes, events, expenses, upload, contributions, reports) plus the health check.
 
 - [ ] **Step 5: Typecheck**
 
