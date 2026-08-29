@@ -1,0 +1,156 @@
+import { pgTable, serial, varchar, text, integer, numeric, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { z } from "zod";
+
+// ---------- auth_account ----------
+export const authAccount = pgTable("auth_account", {
+  id: serial("id").primaryKey(),
+  pinHash: varchar("pin_hash", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type AuthAccount = typeof authAccount.$inferSelect;
+
+// ---------- members ----------
+export const members = pgTable(
+  "members",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 150 }).notNull(),
+    santhaNumber: varchar("santha_number", { length: 50 }).notNull(),
+    phone: varchar("phone", { length: 20 }),
+    address: text("address"),
+    age: integer("age"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    santhaNumberIdx: uniqueIndex("members_santha_number_idx").on(table.santhaNumber),
+  })
+);
+export type Member = typeof members.$inferSelect;
+
+export const insertMemberSchema = z.object({
+  name: z.string().min(1, "Name is required").max(150),
+  santhaNumber: z.string().min(1, "Santha number is required").max(50),
+  phone: z.string().max(20).nullable().optional(),
+  address: z.string().nullable().optional(),
+  age: z.coerce.number().int().positive().max(150).nullable().optional(),
+});
+export type MemberInput = z.infer<typeof insertMemberSchema>;
+
+// ---------- attribute_definitions ----------
+export const ATTRIBUTE_TYPES = ["text", "number", "date"] as const;
+export type AttributeType = (typeof ATTRIBUTE_TYPES)[number];
+
+export const attributeDefinitions = pgTable(
+  "attribute_definitions",
+  {
+    id: serial("id").primaryKey(),
+    key: varchar("key", { length: 60 }).notNull(),
+    label: varchar("label", { length: 100 }).notNull(),
+    type: varchar("type", { length: 20 }).notNull().default("text"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    keyIdx: uniqueIndex("attribute_definitions_key_idx").on(table.key),
+  })
+);
+export type AttributeDefinition = typeof attributeDefinitions.$inferSelect;
+
+export const insertAttributeDefinitionSchema = z.object({
+  key: z
+    .string()
+    .min(1)
+    .max(60)
+    .regex(/^[a-z][a-z0-9_]*$/, "key must be lowercase letters, numbers, and underscores, starting with a letter"),
+  label: z.string().min(1, "Label is required").max(100),
+  type: z.enum(ATTRIBUTE_TYPES).default("text"),
+});
+export type AttributeDefinitionInput = z.infer<typeof insertAttributeDefinitionSchema>;
+
+// ---------- member_attribute_values ----------
+export const memberAttributeValues = pgTable(
+  "member_attribute_values",
+  {
+    id: serial("id").primaryKey(),
+    memberId: integer("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    attributeKey: varchar("attribute_key", { length: 60 }).notNull(),
+    value: text("value"),
+  },
+  (table) => ({
+    memberKeyIdx: uniqueIndex("member_attribute_values_member_key_idx").on(table.memberId, table.attributeKey),
+  })
+);
+export type MemberAttributeValue = typeof memberAttributeValues.$inferSelect;
+
+// ---------- events ----------
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 150 }).notNull(),
+  details: text("details"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type Event = typeof events.$inferSelect;
+
+export const insertEventSchema = z.object({
+  name: z.string().min(1, "Event name is required").max(150),
+  details: z.string().nullable().optional(),
+});
+export type EventInput = z.infer<typeof insertEventSchema>;
+
+// ---------- expenses ----------
+export const EXPENSE_STATUSES = ["paid", "pending"] as const;
+export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
+
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "set null" }),
+  description: varchar("description", { length: 255 }).notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  receiptPhotoUrl: varchar("receipt_photo_url", { length: 500 }),
+  status: varchar("status", { length: 10 }).notNull().default("pending"),
+  date: varchar("date", { length: 10 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type Expense = typeof expenses.$inferSelect;
+
+export const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
+
+export const insertExpenseSchema = z.object({
+  eventId: z.coerce.number().int().positive().nullable().optional(),
+  description: z.string().min(1, "Description is required").max(255),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  receiptPhotoUrl: z.string().url().nullable().optional(),
+  status: z.enum(EXPENSE_STATUSES).default("pending"),
+  date: dateStringSchema,
+});
+export type ExpenseInput = z.infer<typeof insertExpenseSchema>;
+
+// ---------- contributions ----------
+export const contributions = pgTable("contributions", {
+  id: serial("id").primaryKey(),
+  memberId: integer("member_id")
+    .notNull()
+    .references(() => members.id, { onDelete: "restrict" }),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type Contribution = typeof contributions.$inferSelect;
+
+export const insertContributionSchema = z.object({
+  memberId: z.coerce.number().int().positive("A member must be selected"),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  date: dateStringSchema,
+  note: z.string().nullable().optional(),
+});
+export type ContributionInput = z.infer<typeof insertContributionSchema>;
+
+// ---------- settings ----------
+export const settings = pgTable("settings", {
+  id: serial("id").primaryKey(),
+  openingBalance: numeric("opening_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+});
+export type Settings = typeof settings.$inferSelect;
