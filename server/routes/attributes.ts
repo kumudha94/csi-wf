@@ -2,6 +2,7 @@ import { Router } from "express";
 import { insertAttributeDefinitionSchema } from "@shared/schema";
 import * as attributesStorage from "../storage/attributes";
 import { wrap } from "../lib/asyncHandler";
+import { parseId } from "../lib/parseId";
 
 export const attributesRouter = Router();
 
@@ -33,7 +34,12 @@ attributesRouter.post(
 attributesRouter.delete(
   "/:id",
   wrap(async (req, res) => {
-    const deleted = await attributesStorage.deleteAttributeDefinition(Number(req.params.id));
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const deleted = await attributesStorage.deleteAttributeDefinition(id);
     if (!deleted) {
       res.status(404).json({ error: "Attribute not found" });
       return;

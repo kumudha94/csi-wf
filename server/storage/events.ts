@@ -14,7 +14,8 @@ export async function listEvents() {
     })
     .from(events)
     .leftJoin(expenses, eq(expenses.eventId, events.id))
-    .groupBy(events.id);
+    .groupBy(events.id)
+    .orderBy(events.name);
   return rows.map((row) => ({ ...row, totalPaid: fromMoney(row.totalPaid) }));
 }
 

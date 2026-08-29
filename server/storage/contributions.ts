@@ -1,13 +1,17 @@
 import { db } from "../db";
 import { contributions, type Contribution, type ContributionInput } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { toMoney } from "../lib/money";
 
 export async function listContributions(memberId?: number): Promise<Contribution[]> {
   if (memberId !== undefined) {
-    return db.select().from(contributions).where(eq(contributions.memberId, memberId));
+    return db
+      .select()
+      .from(contributions)
+      .where(eq(contributions.memberId, memberId))
+      .orderBy(desc(contributions.date));
   }
-  return db.select().from(contributions);
+  return db.select().from(contributions).orderBy(desc(contributions.date));
 }
 
 export async function createContribution(data: ContributionInput): Promise<Contribution> {

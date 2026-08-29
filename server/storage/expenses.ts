@@ -1,12 +1,14 @@
 import { db } from "../db";
 import { expenses, type Expense, type ExpenseInput } from "@shared/schema";
-import { eq, isNull } from "drizzle-orm";
+import { eq, isNull, desc } from "drizzle-orm";
 import { toMoney } from "../lib/money";
 
 export async function listExpenses(eventId?: number | null): Promise<Expense[]> {
-  if (eventId === undefined) return db.select().from(expenses);
-  if (eventId === null) return db.select().from(expenses).where(isNull(expenses.eventId));
-  return db.select().from(expenses).where(eq(expenses.eventId, eventId));
+  if (eventId === undefined) return db.select().from(expenses).orderBy(desc(expenses.date));
+  if (eventId === null) {
+    return db.select().from(expenses).where(isNull(expenses.eventId)).orderBy(desc(expenses.date));
+  }
+  return db.select().from(expenses).where(eq(expenses.eventId, eventId)).orderBy(desc(expenses.date));
 }
 
 export async function getExpense(id: number): Promise<Expense | null> {

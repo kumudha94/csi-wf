@@ -5,19 +5,22 @@ const SESSION_EXPIRY = "365d";
 
 export type SessionPayload = { accountId: number };
 
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("JWT_SECRET must be set.");
-  return secret;
+// Fail fast at import time, the same way server/db.ts does for DATABASE_URL.
+// Checking this lazily meant a deploy with no JWT_SECRET booted green and only
+// broke later, on the first login attempt.
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET must be set.");
 }
 
+const JWT_SECRET: string = process.env.JWT_SECRET;
+
 export function signSessionToken(payload: SessionPayload): string {
-  return jwt.sign(payload, getJwtSecret(), { expiresIn: SESSION_EXPIRY });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: SESSION_EXPIRY });
 }
 
 export function verifySessionToken(token: string): SessionPayload | null {
   try {
-    const decoded = jwt.verify(token, getJwtSecret());
+    const decoded = jwt.verify(token, JWT_SECRET);
     if (typeof decoded === "string" || typeof decoded.accountId !== "number") {
       return null;
     }

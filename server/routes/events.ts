@@ -2,6 +2,7 @@ import { Router } from "express";
 import { insertEventSchema } from "@shared/schema";
 import * as eventsStorage from "../storage/events";
 import { wrap } from "../lib/asyncHandler";
+import { parseId } from "../lib/parseId";
 
 export const eventsRouter = Router();
 
@@ -16,7 +17,12 @@ eventsRouter.get(
 eventsRouter.get(
   "/:id",
   wrap(async (req, res) => {
-    const event = await eventsStorage.getEvent(Number(req.params.id));
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const event = await eventsStorage.getEvent(id);
     if (!event) {
       res.status(404).json({ error: "Event not found" });
       return;
@@ -37,8 +43,17 @@ eventsRouter.post(
 eventsRouter.patch(
   "/:id",
   wrap(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
     const data = insertEventSchema.partial().parse(req.body);
-    const event = await eventsStorage.updateEvent(Number(req.params.id), data);
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: "No fields to update" });
+      return;
+    }
+    const event = await eventsStorage.updateEvent(id, data);
     if (!event) {
       res.status(404).json({ error: "Event not found" });
       return;
@@ -50,7 +65,12 @@ eventsRouter.patch(
 eventsRouter.delete(
   "/:id",
   wrap(async (req, res) => {
-    const deleted = await eventsStorage.deleteEvent(Number(req.params.id));
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const deleted = await eventsStorage.deleteEvent(id);
     if (!deleted) {
       res.status(404).json({ error: "Event not found" });
       return;

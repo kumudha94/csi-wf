@@ -19,7 +19,19 @@ const rangeSchema = z.object({
 async function buildReport(from: string, to: string) {
   const totals = await reportsStorage.getReportTotals({ from, to });
   const settingsRow = await getSettings();
-  const openingBalance = settingsRow ? fromMoney(settingsRow.openingBalance) : 0;
+
+  // `settings.openingBalance` is the balance at the ledger's inception, which
+  // is only this report's opening balance when `from` is that inception. For
+  // any later range, roll it forward through everything that happened before
+  // `from` — otherwise the closing balance silently omits all of that history.
+  const inceptionBalance = settingsRow ? fromMoney(settingsRow.openingBalance) : 0;
+  const prior = await reportsStorage.getPriorActivity(from);
+  const openingBalance = computeBalance({
+    openingBalance: inceptionBalance,
+    totalContributions: fromMoney(prior.totalContributions),
+    totalPaidExpenses: fromMoney(prior.totalPaidExpenses),
+  });
+
   const totalContributions = fromMoney(totals.totalContributions);
   const totalPaidExpenses = fromMoney(totals.totalPaidExpenses);
   const totalPendingExpenses = fromMoney(totals.totalPendingExpenses);
