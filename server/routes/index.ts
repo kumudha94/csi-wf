@@ -9,6 +9,7 @@ import { eventsRouter } from "./events";
 import { expensesRouter } from "./expenses";
 import { uploadRouter } from "./upload";
 import { contributionsRouter } from "./contributions";
+import { reportsRouter } from "./reports";
 import { requireAuth } from "../middleware/requireAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -25,6 +26,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/expenses", requireAuth, expensesRouter);
   app.use("/api/upload", requireAuth, uploadRouter);
   app.use("/api/contributions", requireAuth, contributionsRouter);
+  app.use("/api/reports", requireAuth, reportsRouter);
 
   return createServer(app);
 }
