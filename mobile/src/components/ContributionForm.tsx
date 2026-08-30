@@ -35,6 +35,7 @@ export default function ContributionForm({ visible, onClose }: Props) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["contributions"] });
       setSelectedMember(null);
       setAmount("");
       setNote("");

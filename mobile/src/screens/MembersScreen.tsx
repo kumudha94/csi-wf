@@ -12,7 +12,7 @@ export default function MembersScreen() {
   const [formVisible, setFormVisible] = useState(false);
   const [editingMember, setEditingMember] = useState<MemberWithAttributes | null>(null);
 
-  const { data: members = [], isLoading } = useQuery({
+  const { data: members = [], isFetching } = useQuery({
     queryKey: ["members", search],
     queryFn: () => apiRequest<Member[]>(`/api/members${search ? `?search=${encodeURIComponent(search)}` : ""}`),
   });
@@ -63,7 +63,7 @@ export default function MembersScreen() {
       <FlatList
         data={members}
         keyExtractor={(m) => String(m.id)}
-        refreshing={isLoading}
+        refreshing={isFetching}
         onRefresh={() => queryClient.invalidateQueries({ queryKey: ["members"] })}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card} onPress={() => openEdit(item)} onLongPress={() => confirmDelete(item)}>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
 import type { BalanceResponse, Expense } from "../lib/types";
 import { formatCurrency } from "../lib/format";
@@ -11,7 +11,6 @@ import ExpenseForm from "../components/ExpenseForm";
 type Tab = "contributions" | "expenses";
 
 export default function BalanceScreen() {
-  const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("expenses");
   const [contributionFormVisible, setContributionFormVisible] = useState(false);
   const [expenseFormVisible, setExpenseFormVisible] = useState(false);
@@ -71,7 +70,7 @@ export default function BalanceScreen() {
             </TouchableOpacity>
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>{generalExpensesIsError ? "Could not load expenses." : "No general expenses yet."}</Text>}
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
         />
       ) : (
         <RecentContributions />
@@ -93,10 +92,7 @@ export default function BalanceScreen() {
 
       <ExpenseForm
         visible={expenseFormVisible}
-        onClose={() => {
-          setExpenseFormVisible(false);
-          queryClient.invalidateQueries({ queryKey: ["balance"] });
-        }}
+        onClose={() => setExpenseFormVisible(false)}
         eventId={null}
         expense={editingExpense}
         invalidateKey={["expenses", "general"]}
@@ -128,7 +124,7 @@ function RecentContributions() {
         </View>
       )}
       ListEmptyComponent={<Text style={styles.emptyText}>{contributionsIsError ? "Could not load contributions." : "No contributions logged yet."}</Text>}
-      contentContainerStyle={{ padding: 16 }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
     />
   );
 }

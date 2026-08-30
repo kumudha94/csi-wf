@@ -68,7 +68,7 @@ export default function EventsScreen({ navigation }: Props) {
   const queryClient = useQueryClient();
   const [createVisible, setCreateVisible] = useState(false);
 
-  const { data: events = [], isLoading, isError } = useQuery({
+  const { data: events = [], isFetching, isError } = useQuery({
     queryKey: ["events"],
     queryFn: () => apiRequest<EventSummary[]>("/api/events"),
   });
@@ -78,7 +78,7 @@ export default function EventsScreen({ navigation }: Props) {
       <FlatList
         data={events}
         keyExtractor={(e) => String(e.id)}
-        refreshing={isLoading}
+        refreshing={isFetching}
         onRefresh={() => queryClient.invalidateQueries({ queryKey: ["events"] })}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("EventDetail", { eventId: item.id })}>
@@ -87,7 +87,7 @@ export default function EventsScreen({ navigation }: Props) {
           </TouchableOpacity>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>{isError ? "Could not load events." : "No events yet. Tap \"+ New Event\" to create one."}</Text>}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
       />
       <TouchableOpacity style={styles.fab} onPress={() => setCreateVisible(true)}>
         <Text style={styles.fabText}>+ New Event</Text>

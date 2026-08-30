@@ -22,7 +22,7 @@ export default function EventDetailScreen({ route }: Props) {
     queryFn: () => apiRequest<EventDetail>(`/api/events/${eventId}`),
   });
 
-  const { data: expenses = [], isLoading, isError: expensesIsError } = useQuery({
+  const { data: expenses = [], isFetching, isError: expensesIsError } = useQuery({
     queryKey: ["expenses", "event", eventId],
     queryFn: () => apiRequest<Expense[]>(`/api/expenses?eventId=${eventId}`),
   });
@@ -32,6 +32,7 @@ export default function EventDetailScreen({ route }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] });
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
     },
     onError: (error: any) => Alert.alert("Could not delete expense", error.message),
   });
@@ -59,7 +60,7 @@ export default function EventDetailScreen({ route }: Props) {
       <FlatList
         data={expenses}
         keyExtractor={(e) => String(e.id)}
-        refreshing={isLoading}
+        refreshing={isFetching}
         onRefresh={() => queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] })}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -83,7 +84,7 @@ export default function EventDetailScreen({ route }: Props) {
           </TouchableOpacity>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>{expensesIsError ? "Could not load expenses." : "No expenses yet for this event."}</Text>}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
       />
 
       <TouchableOpacity

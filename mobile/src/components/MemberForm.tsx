@@ -60,7 +60,7 @@ export default function MemberForm({ visible, onClose, member }: Props) {
 
       for (const attr of attributeDefs) {
         const value = customValues[attr.key];
-        if (value !== undefined && value !== "") {
+        if (value !== undefined) {
           await apiRequest(`/api/members/${saved.id}/attributes/${attr.key}`, {
             method: "PUT",
             body: JSON.stringify({ value }),
