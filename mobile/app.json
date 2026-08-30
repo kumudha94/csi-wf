@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "CSI-WF Treasurer",
+    "slug": "csi-wf-treasurer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#6D28D9",
+    "android": {
+      "package": "com.csiwf.treasurer",
+      "adaptiveIcon": {
+        "backgroundColor": "#6D28D9"
+      }
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}
