@@ -24,9 +24,13 @@ export default function MembersScreen() {
   });
 
   const openEdit = async (member: Member) => {
-    const full = await apiRequest<MemberWithAttributes>(`/api/members/${member.id}`);
-    setEditingMember(full);
-    setFormVisible(true);
+    try {
+      const full = await apiRequest<MemberWithAttributes>(`/api/members/${member.id}`);
+      setEditingMember(full);
+      setFormVisible(true);
+    } catch (error: any) {
+      Alert.alert("Could not load member", error.message || "Something went wrong");
+    }
   };
 
   const confirmDelete = (member: Member) => {
