@@ -17,19 +17,22 @@ export default function EventDetailScreen({ route }: Props) {
   const [formVisible, setFormVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
-  const { data: event } = useQuery({
+  const { data: event, isError: eventIsError } = useQuery({
     queryKey: ["event", eventId],
     queryFn: () => apiRequest<EventDetail>(`/api/events/${eventId}`),
   });
 
-  const { data: expenses = [], isLoading } = useQuery({
+  const { data: expenses = [], isLoading, isError: expensesIsError } = useQuery({
     queryKey: ["expenses", "event", eventId],
     queryFn: () => apiRequest<Expense[]>(`/api/expenses?eventId=${eventId}`),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest(`/api/expenses/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
     onError: (error: any) => Alert.alert("Could not delete expense", error.message),
   });
 
@@ -45,11 +48,13 @@ export default function EventDetailScreen({ route }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.summaryCard}>
-        {event?.details ? <Text style={styles.eventDetails}>{event.details}</Text> : null}
-        <Text style={styles.summaryLine}>Paid: {formatCurrency(totalPaid)}</Text>
-        <Text style={styles.summaryLineMuted}>Pending: {formatCurrency(totalPending)}</Text>
-      </View>
+      {eventIsError ? <Text style={styles.emptyText}>Could not load event details.</Text> : (
+        <View style={styles.summaryCard}>
+          {event?.details ? <Text style={styles.eventDetails}>{event.details}</Text> : null}
+          <Text style={styles.summaryLine}>Paid: {formatCurrency(totalPaid)}</Text>
+          <Text style={styles.summaryLineMuted}>Pending: {formatCurrency(totalPending)}</Text>
+        </View>
+      )}
 
       <FlatList
         data={expenses}
@@ -77,7 +82,7 @@ export default function EventDetailScreen({ route }: Props) {
             </View>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No expenses yet for this event.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>{expensesIsError ? "Could not load expenses." : "No expenses yet for this event."}</Text>}
         contentContainerStyle={{ padding: 16 }}
       />
 

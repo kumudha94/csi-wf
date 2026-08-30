@@ -71,6 +71,7 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: invalidateKey });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
       onClose();
     },
     onError: (error: any) => Alert.alert("Could not save expense", error.message || "Something went wrong"),

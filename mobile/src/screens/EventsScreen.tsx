@@ -68,7 +68,7 @@ export default function EventsScreen({ navigation }: Props) {
   const queryClient = useQueryClient();
   const [createVisible, setCreateVisible] = useState(false);
 
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading, isError } = useQuery({
     queryKey: ["events"],
     queryFn: () => apiRequest<EventSummary[]>("/api/events"),
   });
@@ -86,7 +86,7 @@ export default function EventsScreen({ navigation }: Props) {
             <Text style={styles.eventTotal}>Spent: {formatCurrency(item.totalPaid)}</Text>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No events yet. Tap "+ New Event" to create one.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>{isError ? "Could not load events." : "No events yet. Tap \"+ New Event\" to create one."}</Text>}
         contentContainerStyle={{ padding: 16 }}
       />
       <TouchableOpacity style={styles.fab} onPress={() => setCreateVisible(true)}>
