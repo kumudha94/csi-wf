@@ -16,7 +16,7 @@ export default function ContributionForm({ visible, onClose }: Props) {
   const [date, setDate] = useState(todayString());
   const [note, setNote] = useState("");
 
-  const { data: members = [] } = useQuery({
+  const { data: members = [], isError: membersIsError } = useQuery({
     queryKey: ["members", ""],
     queryFn: () => apiRequest<Member[]>("/api/members"),
     enabled: visible,
@@ -67,6 +67,7 @@ export default function ContributionForm({ visible, onClose }: Props) {
             {selectedMember ? selectedMember.name : "Select a member"}
           </Text>
         </TouchableOpacity>
+        {membersIsError ? <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>Could not load members.</Text> : null}
 
         <Text style={styles.label}>Amount (₹) *</Text>
         <TextInput style={styles.input} value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="decimal-pad" />

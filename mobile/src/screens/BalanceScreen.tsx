@@ -17,12 +17,12 @@ export default function BalanceScreen() {
   const [expenseFormVisible, setExpenseFormVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
-  const { data: balance } = useQuery({
+  const { data: balance, isError: balanceIsError } = useQuery({
     queryKey: ["balance"],
     queryFn: () => apiRequest<BalanceResponse>("/api/balance"),
   });
 
-  const { data: generalExpenses = [] } = useQuery({
+  const { data: generalExpenses = [], isError: generalExpensesIsError } = useQuery({
     queryKey: ["expenses", "general"],
     queryFn: () => apiRequest<Expense[]>("/api/expenses?eventId=general"),
     enabled: tab === "expenses",
@@ -32,8 +32,14 @@ export default function BalanceScreen() {
     <View style={styles.container}>
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Current Balance</Text>
-        <Text style={styles.balanceValue}>{formatCurrency(balance?.balance ?? 0)}</Text>
-        <Text style={styles.balancePending}>Pending expenses: {formatCurrency(balance?.totalPendingExpenses ?? 0)}</Text>
+        {balanceIsError ? (
+          <Text style={styles.balanceValue}>Could not load balance.</Text>
+        ) : (
+          <>
+            <Text style={styles.balanceValue}>{formatCurrency(balance?.balance ?? 0)}</Text>
+            <Text style={styles.balancePending}>Pending expenses: {formatCurrency(balance?.totalPendingExpenses ?? 0)}</Text>
+          </>
+        )}
       </View>
 
       <View style={styles.tabRow}>
@@ -64,7 +70,7 @@ export default function BalanceScreen() {
               <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No general expenses yet.</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{generalExpensesIsError ? "Could not load expenses." : "No general expenses yet."}</Text>}
           contentContainerStyle={{ padding: 16 }}
         />
       ) : (
@@ -101,7 +107,7 @@ export default function BalanceScreen() {
 }
 
 function RecentContributions() {
-  const { data: contributions = [] } = useQuery({
+  const { data: contributions = [], isError: contributionsIsError } = useQuery({
     queryKey: ["contributions"],
     queryFn: () => apiRequest<{ id: number; memberId: number; amount: number; date: string; note: string | null }[]>(
       "/api/contributions"
@@ -121,7 +127,7 @@ function RecentContributions() {
           <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
         </View>
       )}
-      ListEmptyComponent={<Text style={styles.emptyText}>No contributions logged yet.</Text>}
+      ListEmptyComponent={<Text style={styles.emptyText}>{contributionsIsError ? "Could not load contributions." : "No contributions logged yet."}</Text>}
       contentContainerStyle={{ padding: 16 }}
     />
   );
