@@ -8,9 +8,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View, ActivityIndicator } from "react-native";
 
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MembersScreen from "./src/screens/MembersScreen";
 import EventsScreen from "./src/screens/EventsScreen";
+import EventDetailScreen from "./src/screens/EventDetailScreen";
 import BalanceScreen from "./src/screens/BalanceScreen";
+import type { EventsStackParamList } from "./src/navigation/types";
 import ReportsScreen from "./src/screens/ReportsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import OnboardingScreen from "./src/screens/auth/OnboardingScreen";
@@ -31,6 +34,16 @@ export type TabParamList = {
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
+const EventsStack = createNativeStackNavigator<EventsStackParamList>();
+
+function EventsStackNavigator() {
+  return (
+    <EventsStack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.textPrimary }}>
+      <EventsStack.Screen name="EventsList" component={EventsScreen} options={{ title: "Events" }} />
+      <EventsStack.Screen name="EventDetail" component={EventDetailScreen} options={{ title: "Event" }} />
+    </EventsStack.Navigator>
+  );
+}
 
 function TabNavigator() {
   return (
@@ -52,7 +65,7 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="Members" component={MembersScreen} />
-      <Tab.Screen name="Events" component={EventsScreen} />
+      <Tab.Screen name="Events" component={EventsStackNavigator} options={{ headerShown: false }} />
       <Tab.Screen name="Balance" component={BalanceScreen} />
       <Tab.Screen name="Reports" component={ReportsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
