@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { apiRequest } from "../../lib/api";
+import { setToken } from "../../lib/authStorage";
 import { useAuth } from "../../contexts/AuthContext";
 import { colors } from "../../theme";
 
@@ -35,8 +36,9 @@ export default function OnboardingScreen() {
         method: "POST",
         body: JSON.stringify({ pin }),
       });
-      await login(token);
+      await setToken(token);
       await apiRequest("/api/settings", { method: "PUT", body: JSON.stringify({ openingBalance: balance }) });
+      await login(token);
       markSetUp();
     } catch (error: any) {
       Alert.alert("Setup failed", error.message || "Something went wrong");
