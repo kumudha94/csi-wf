@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, FlatList } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
 import type { Member } from "../lib/types";
 import { todayString } from "../lib/format";
-import { colors } from "../theme";
+import type { ThemeColors } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
 
 type Props = { visible: boolean; onClose: () => void };
 
 export default function ContributionForm({ visible, onClose }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -36,6 +40,7 @@ export default function ContributionForm({ visible, onClose }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["balance"] });
       queryClient.invalidateQueries({ queryKey: ["contributions"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
       setSelectedMember(null);
       setAmount("");
       setNote("");
@@ -59,7 +64,8 @@ export default function ContributionForm({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
         <Text style={styles.title}>Add Contribution</Text>
 
         <Text style={styles.label}>Member *</Text>
@@ -88,9 +94,11 @@ export default function ContributionForm({ visible, onClose }: Props) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </SafeAreaView>
 
       <Modal visible={pickerOpen} animationType="slide" onRequestClose={() => setPickerOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: colors.background, padding: 20 }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top", "bottom"]}>
+        <View style={{ flex: 1, padding: 20 }}>
           <Text style={styles.title}>Select Member</Text>
           <FlatList
             data={members}
@@ -109,12 +117,13 @@ export default function ContributionForm({ visible, onClose }: Props) {
             )}
           />
         </View>
+        </SafeAreaView>
       </Modal>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   title: { fontSize: 20, fontWeight: "700", color: colors.textPrimary, marginBottom: 16 },
   label: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginBottom: 6, marginTop: 12 },

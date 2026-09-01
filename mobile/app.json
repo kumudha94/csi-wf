@@ -6,12 +6,18 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#6D28D9",
+    "icon": "./assets/icon.png",
     "android": {
       "package": "com.csiwf.treasurer",
       "adaptiveIcon": {
-        "backgroundColor": "#6D28D9"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#03021A"
       }
     },
-    "plugins": ["expo-secure-store"]
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      "@react-native-community/datetimepicker"
+    ]
   }
 }

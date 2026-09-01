@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Image } from "react-native";
+import { useState, useEffect, useMemo } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Image, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest, uploadReceipt } from "../lib/api";
 import type { Expense, ExpenseStatus } from "../lib/types";
-import { todayString } from "../lib/format";
-import { colors } from "../theme";
+import { todayString, dateToString } from "../lib/format";
+import type { ThemeColors } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
 
 type Props = {
   visible: boolean;
@@ -16,6 +19,8 @@ type Props = {
 };
 
 export default function ExpenseForm({ visible, onClose, eventId, expense, invalidateKey }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const isEditing = !!expense;
 
@@ -26,6 +31,7 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -37,6 +43,18 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
       setReceiptUrl(expense?.receiptPhotoUrl || null);
     }
   }, [visible, expense]);
+
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (event.type === "set" && selectedDate) {
+      setDate(dateToString(selectedDate));
+    }
+  };
+
+  const removeReceipt = () => {
+    setReceiptUri(null);
+    setReceiptUrl(null);
+  };
 
   const pickReceipt = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
@@ -73,6 +91,7 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
       queryClient.invalidateQueries({ queryKey: invalidateKey });
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
       onClose();
     },
     onError: (error: any) => Alert.alert("Could not save expense", error.message || "Something went wrong"),
@@ -93,7 +112,8 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
         <Text style={styles.title}>{isEditing ? "Edit Expense" : "Add Expense"}</Text>
 
         <Text style={styles.label}>Reason / Description *</Text>
@@ -102,8 +122,13 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
         <Text style={styles.label}>Amount (₹) *</Text>
         <TextInput style={styles.input} value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="decimal-pad" />
 
-        <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
-        <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="2026-08-29" />
+        <Text style={styles.label}>Date</Text>
+        <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+          <Text style={{ color: colors.textPrimary }}>{date}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker value={new Date(`${date}T00:00:00`)} mode="date" display="default" onChange={handleDateChange} />
+        )}
 
         <Text style={styles.label}>Status</Text>
         <View style={styles.statusRow}>
@@ -122,7 +147,12 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
 
         <Text style={styles.label}>Receipt photo</Text>
         {receiptUri || receiptUrl ? (
-          <Image source={{ uri: receiptUri || receiptUrl! }} style={styles.receiptPreview} />
+          <View style={styles.receiptPreviewRow}>
+            <Image source={{ uri: receiptUri || receiptUrl! }} style={styles.receiptPreview} />
+            <TouchableOpacity style={styles.removeReceiptButton} onPress={removeReceipt} disabled={isUploading}>
+              <Text style={styles.removeReceiptButtonText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
         ) : null}
         <TouchableOpacity style={styles.photoButton} onPress={pickReceipt} disabled={isUploading}>
           <Text style={styles.photoButtonText}>{isUploading ? "Uploading..." : "Choose Photo"}</Text>
@@ -137,11 +167,12 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </SafeAreaView>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   title: { fontSize: 20, fontWeight: "700", color: colors.textPrimary, marginBottom: 16 },
   label: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginBottom: 6, marginTop: 12 },
@@ -167,7 +198,16 @@ const styles = StyleSheet.create({
   statusOptionActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   statusOptionText: { color: colors.textSecondary, fontWeight: "600" },
   statusOptionTextActive: { color: colors.primary },
-  receiptPreview: { width: 120, height: 120, borderRadius: 8, marginBottom: 10 },
+  receiptPreviewRow: { flexDirection: "row", alignItems: "flex-end", gap: 12, marginBottom: 10 },
+  receiptPreview: { width: 120, height: 120, borderRadius: 8 },
+  removeReceiptButton: {
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  removeReceiptButtonText: { color: colors.danger, fontWeight: "600" },
   photoButton: {
     borderWidth: 1,
     borderColor: colors.border,

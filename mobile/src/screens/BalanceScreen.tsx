@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
 import type { BalanceResponse, Expense } from "../lib/types";
 import { formatCurrency } from "../lib/format";
-import { colors } from "../theme";
+import type { ThemeColors } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
 import ContributionForm from "../components/ContributionForm";
 import ExpenseForm from "../components/ExpenseForm";
 
 type Tab = "contributions" | "expenses";
 
 export default function BalanceScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [tab, setTab] = useState<Tab>("expenses");
   const [contributionFormVisible, setContributionFormVisible] = useState(false);
   const [expenseFormVisible, setExpenseFormVisible] = useState(false);
@@ -103,6 +106,8 @@ export default function BalanceScreen() {
 }
 
 function RecentContributions() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { data: contributions = [], isError: contributionsIsError } = useQuery({
     queryKey: ["contributions"],
     queryFn: () => apiRequest<{ id: number; memberId: number; amount: number; date: string; note: string | null }[]>(
@@ -129,7 +134,7 @@ function RecentContributions() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12 },
   balanceLabel: { color: colors.primarySoft, fontSize: 13 },

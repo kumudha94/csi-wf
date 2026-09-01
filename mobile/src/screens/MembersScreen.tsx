@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
 import type { Member, MemberWithAttributes } from "../lib/types";
-import { colors } from "../theme";
+import type { ThemeColors } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
 import MemberForm from "../components/MemberForm";
 
 export default function MembersScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [formVisible, setFormVisible] = useState(false);
@@ -81,7 +84,7 @@ export default function MembersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   searchRow: { flexDirection: "row", gap: 8, padding: 16, paddingBottom: 0 },
   searchInput: {

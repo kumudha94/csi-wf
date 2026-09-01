@@ -18,13 +18,14 @@ export type MemberAttributeValue = {
 
 export type MemberWithAttributes = Member & { attributes: MemberAttributeValue[] };
 
-export type AttributeType = "text" | "number" | "date";
+export type AttributeType = "text" | "number" | "date" | "list";
 
 export type AttributeDefinition = {
   id: number;
   key: string;
   label: string;
   type: AttributeType;
+  options: string[] | null;
   createdAt: string;
 };
 

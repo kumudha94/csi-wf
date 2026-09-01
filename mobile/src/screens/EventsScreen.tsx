@@ -1,16 +1,20 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, Modal } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { apiRequest } from "../lib/api";
 import type { EventSummary } from "../lib/types";
 import { formatCurrency } from "../lib/format";
-import { colors } from "../theme";
+import type { ThemeColors } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
 import type { EventsStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<EventsStackParamList, "EventsList">;
 
 function CreateEventModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [details, setDetails] = useState("");
@@ -28,7 +32,7 @@ function CreateEventModal({ visible, onClose }: { visible: boolean; onClose: () 
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalContainer}>
+      <SafeAreaView style={styles.modalContainer} edges={["top", "bottom"]}>
         <Text style={styles.title}>New Event</Text>
         <Text style={styles.label}>Event name *</Text>
         <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. Annual Meet" />
@@ -59,12 +63,14 @@ function CreateEventModal({ visible, onClose }: { visible: boolean; onClose: () 
             <Text style={styles.buttonText}>{createMutation.isPending ? "Creating..." : "Create"}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 export default function EventsScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [createVisible, setCreateVisible] = useState(false);
 
@@ -97,7 +103,7 @@ export default function EventsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   card: {
     backgroundColor: colors.surface,

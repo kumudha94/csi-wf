@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { apiRequest } from "../../lib/api";
 import { useAuth } from "../../contexts/AuthContext";
-import { colors } from "../../theme";
+import type { ThemeColors } from "../../theme";
+import { useTheme } from "../../contexts/ThemeContext";
 
 export default function PinLoginScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { login } = useAuth();
   const [pin, setPin] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,7 +49,7 @@ export default function PinLoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: "center" },
   title: { fontSize: 24, fontWeight: "700", color: colors.textPrimary, textAlign: "center", marginBottom: 4 },
   subtitle: { fontSize: 14, color: colors.textSecondary, textAlign: "center", marginBottom: 24 },

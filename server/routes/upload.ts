@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { uploadImageBuffer } from "../lib/cloudinary";
+import { uploadImageBuffer } from "../lib/gcs";
 
 export const uploadRouter = Router();
 
@@ -31,7 +31,7 @@ uploadRouter.post("/receipt", (req, res) => {
       return;
     }
     try {
-      const { secureUrl } = await uploadImageBuffer(req.file.buffer, "csi-wf/receipts");
+      const { secureUrl } = await uploadImageBuffer(req.file.buffer, "receipts", req.file.mimetype);
       res.json({ url: secureUrl });
     } catch (error) {
       res.status(502).json({ error: error instanceof Error ? error.message : "Upload failed" });

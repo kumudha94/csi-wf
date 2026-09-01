@@ -7,6 +7,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View, ActivityIndicator } from "react-native";
+import type { ReactNode } from "react";
 
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MembersScreen from "./src/screens/MembersScreen";
@@ -19,7 +20,7 @@ import SettingsScreen from "./src/screens/SettingsScreen";
 import OnboardingScreen from "./src/screens/auth/OnboardingScreen";
 import PinLoginScreen from "./src/screens/auth/PinLoginScreen";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
-import { colors } from "./src/theme";
+import { ThemeProvider, useTheme } from "./src/contexts/ThemeContext";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 30, retry: 1 } },
@@ -37,6 +38,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const EventsStack = createNativeStackNavigator<EventsStackParamList>();
 
 function EventsStackNavigator() {
+  const { colors } = useTheme();
   return (
     <EventsStack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.textPrimary }}>
       <EventsStack.Screen name="EventsList" component={EventsScreen} options={{ title: "Events" }} />
@@ -46,6 +48,7 @@ function EventsStackNavigator() {
 }
 
 function TabNavigator() {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -60,6 +63,7 @@ function TabNavigator() {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.textPrimary,
       })}
@@ -75,6 +79,7 @@ function TabNavigator() {
 
 function AppContent() {
   const { isLoading, isSetUp, isAuthenticated } = useAuth();
+  const { colors, scheme } = useTheme();
 
   if (isLoading) {
     return (
@@ -84,27 +89,36 @@ function AppContent() {
     );
   }
 
-  if (!isSetUp) return <OnboardingScreen />;
-  if (!isAuthenticated) return <PinLoginScreen />;
+  let screen: ReactNode;
+  if (!isSetUp) screen = <OnboardingScreen />;
+  else if (!isAuthenticated) screen = <PinLoginScreen />;
+  else
+    screen = (
+      <NavigationContainer>
+        <TabNavigator />
+      </NavigationContainer>
+    );
 
   return (
-    <NavigationContainer>
-      <TabNavigator />
-    </NavigationContainer>
+    <>
+      {screen}
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+    </>
   );
 }
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <SafeAreaProvider>
-            <AppContent />
-            <StatusBar style="dark" />
-          </SafeAreaProvider>
-        </GestureHandlerRootView>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+              <AppContent />
+            </SafeAreaProvider>
+          </GestureHandlerRootView>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

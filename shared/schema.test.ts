@@ -51,6 +51,31 @@ describe("insertAttributeDefinitionSchema", () => {
     const result = insertAttributeDefinitionSchema.parse({ key: "notes", label: "Notes" });
     expect(result.type).toBe("text");
   });
+
+  it("accepts a list type with options", () => {
+    const result = insertAttributeDefinitionSchema.safeParse({
+      key: "blood_group",
+      label: "Blood Group",
+      type: "list",
+      options: ["A+", "B+", "O+"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a list type with no options", () => {
+    const result = insertAttributeDefinitionSchema.safeParse({ key: "blood_group", label: "Blood Group", type: "list" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a list type with only blank options", () => {
+    const result = insertAttributeDefinitionSchema.safeParse({
+      key: "blood_group",
+      label: "Blood Group",
+      type: "list",
+      options: ["  "],
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("insertEventSchema", () => {

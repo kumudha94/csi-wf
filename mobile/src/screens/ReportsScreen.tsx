@@ -1,13 +1,15 @@
-import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from "react-native";
+import { useState, useMemo } from "react";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Platform } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { cacheDirectory, downloadAsync } from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest, API_BASE_URL } from "../lib/api";
 import { getToken } from "../lib/authStorage";
 import type { ReportResponse } from "../lib/types";
-import { formatCurrency, todayString, isValidDateString } from "../lib/format";
-import { colors } from "../theme";
+import { formatCurrency, todayString, dateToString, isValidDateString } from "../lib/format";
+import type { ThemeColors } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
 
 function firstOfMonthString(): string {
   const now = new Date();
@@ -17,11 +19,29 @@ function firstOfMonthString(): string {
 }
 
 export default function ReportsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [from, setFrom] = useState(firstOfMonthString());
   const [to, setTo] = useState(todayString());
   const [isExporting, setIsExporting] = useState(false);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
 
   const rangeValid = isValidDateString(from) && isValidDateString(to);
+
+  const handleFromChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowFromPicker(Platform.OS === "ios");
+    if (event.type === "set" && selectedDate) {
+      setFrom(dateToString(selectedDate));
+    }
+  };
+
+  const handleToChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowToPicker(Platform.OS === "ios");
+    if (event.type === "set" && selectedDate) {
+      setTo(dateToString(selectedDate));
+    }
+  };
 
   const { data: report, refetch, isFetching, isError } = useQuery({
     queryKey: ["reports", from, to],
@@ -55,11 +75,21 @@ export default function ReportsScreen() {
       <View style={styles.rangeRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>From</Text>
-          <TextInput style={styles.input} value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" />
+          <TouchableOpacity style={styles.input} onPress={() => setShowFromPicker(true)}>
+            <Text style={{ color: colors.textPrimary }}>{from}</Text>
+          </TouchableOpacity>
+          {showFromPicker && (
+            <DateTimePicker value={new Date(`${from}T00:00:00`)} mode="date" display="default" onChange={handleFromChange} />
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>To</Text>
-          <TextInput style={styles.input} value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" />
+          <TouchableOpacity style={styles.input} onPress={() => setShowToPicker(true)}>
+            <Text style={{ color: colors.textPrimary }}>{to}</Text>
+          </TouchableOpacity>
+          {showToPicker && (
+            <DateTimePicker value={new Date(`${to}T00:00:00`)} mode="date" display="default" onChange={handleToChange} />
+          )}
         </View>
       </View>
       <TouchableOpacity style={styles.refreshButton} onPress={() => refetch()} disabled={!rangeValid || isFetching}>
@@ -125,6 +155,8 @@ export default function ReportsScreen() {
 }
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.summaryRow}>
       <Text style={styles.summaryLabel}>{label}</Text>
@@ -133,7 +165,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   rangeRow: { flexDirection: "row", gap: 12 },
   label: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginBottom: 6 },

@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, numeric, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, integer, numeric, timestamp, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // ---------- auth_account ----------
@@ -38,7 +38,7 @@ export const insertMemberSchema = z.object({
 export type MemberInput = z.infer<typeof insertMemberSchema>;
 
 // ---------- attribute_definitions ----------
-export const ATTRIBUTE_TYPES = ["text", "number", "date"] as const;
+export const ATTRIBUTE_TYPES = ["text", "number", "date", "list"] as const;
 export type AttributeType = (typeof ATTRIBUTE_TYPES)[number];
 
 export const attributeDefinitions = pgTable(
@@ -48,6 +48,7 @@ export const attributeDefinitions = pgTable(
     key: varchar("key", { length: 60 }).notNull(),
     label: varchar("label", { length: 100 }).notNull(),
     type: varchar("type", { length: 20 }).notNull().default("text"),
+    options: jsonb("options").$type<string[]>(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
@@ -56,15 +57,21 @@ export const attributeDefinitions = pgTable(
 );
 export type AttributeDefinition = typeof attributeDefinitions.$inferSelect;
 
-export const insertAttributeDefinitionSchema = z.object({
-  key: z
-    .string()
-    .min(1)
-    .max(60)
-    .regex(/^[a-z][a-z0-9_]*$/, "key must be lowercase letters, numbers, and underscores, starting with a letter"),
-  label: z.string().min(1, "Label is required").max(100),
-  type: z.enum(ATTRIBUTE_TYPES).default("text"),
-});
+export const insertAttributeDefinitionSchema = z
+  .object({
+    key: z
+      .string()
+      .min(1)
+      .max(60)
+      .regex(/^[a-z][a-z0-9_]*$/, "key must be lowercase letters, numbers, and underscores, starting with a letter"),
+    label: z.string().min(1, "Label is required").max(100),
+    type: z.enum(ATTRIBUTE_TYPES).default("text"),
+    options: z.array(z.string().trim().min(1)).max(50).optional(),
+  })
+  .refine((data) => data.type !== "list" || (data.options && data.options.length > 0), {
+    message: "List fields need at least one option",
+    path: ["options"],
+  });
 export type AttributeDefinitionInput = z.infer<typeof insertAttributeDefinitionSchema>;
 
 // ---------- member_attribute_values ----------

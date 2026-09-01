@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
 import type { AttributeDefinition, MemberWithAttributes } from "../lib/types";
-import { colors } from "../theme";
+import type { ThemeColors } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
 
 type Props = {
   visible: boolean;
@@ -12,6 +14,8 @@ type Props = {
 };
 
 export default function MemberForm({ visible, onClose, member }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const isEditing = !!member;
 
@@ -88,7 +92,8 @@ export default function MemberForm({ visible, onClose, member }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
         <Text style={styles.title}>{isEditing ? "Edit Member" : "Add Member"}</Text>
 
         <Text style={styles.label}>Name *</Text>
@@ -116,13 +121,30 @@ export default function MemberForm({ visible, onClose, member }: Props) {
         {attributeDefs.map((attr) => (
           <View key={attr.key}>
             <Text style={styles.label}>{attr.label}</Text>
-            <TextInput
-              style={styles.input}
-              value={customValues[attr.key] || ""}
-              onChangeText={(text) => setCustomValues((prev) => ({ ...prev, [attr.key]: text }))}
-              placeholder={attr.label}
-              keyboardType={attr.type === "number" ? "number-pad" : "default"}
-            />
+            {attr.type === "list" ? (
+              <View style={styles.optionRow}>
+                {(attr.options || []).map((opt) => {
+                  const selected = customValues[attr.key] === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.optionChip, selected && styles.optionChipActive]}
+                      onPress={() => setCustomValues((prev) => ({ ...prev, [attr.key]: selected ? "" : opt }))}
+                    >
+                      <Text style={[styles.optionChipText, selected && styles.optionChipTextActive]}>{opt}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <TextInput
+                style={styles.input}
+                value={customValues[attr.key] || ""}
+                onChangeText={(text) => setCustomValues((prev) => ({ ...prev, [attr.key]: text }))}
+                placeholder={attr.label}
+                keyboardType={attr.type === "number" ? "number-pad" : "default"}
+              />
+            )}
           </View>
         ))}
 
@@ -135,11 +157,12 @@ export default function MemberForm({ visible, onClose, member }: Props) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </SafeAreaView>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   title: { fontSize: 20, fontWeight: "700", color: colors.textPrimary, marginBottom: 16 },
   label: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginBottom: 6, marginTop: 12 },
@@ -158,4 +181,9 @@ const styles = StyleSheet.create({
   buttonText: { color: colors.white, fontSize: 15, fontWeight: "600" },
   secondaryButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   secondaryButtonText: { color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
+  optionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  optionChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: colors.surface },
+  optionChipActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  optionChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  optionChipTextActive: { color: colors.primary },
 });

@@ -1,26 +1,65 @@
-import { useState } from "react";
+import { useState, useMemo, useLayoutEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { apiRequest } from "../lib/api";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { cacheDirectory, downloadAsync } from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import { apiRequest, API_BASE_URL } from "../lib/api";
+import { getToken } from "../lib/authStorage";
 import type { Expense, EventDetail } from "../lib/types";
 import { formatCurrency } from "../lib/format";
-import { colors } from "../theme";
+import type { ThemeColors } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
 import ExpenseForm from "../components/ExpenseForm";
 import type { EventsStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<EventsStackParamList, "EventDetail">;
 
-export default function EventDetailScreen({ route }: Props) {
+export default function EventDetailScreen({ route, navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { eventId } = route.params;
   const queryClient = useQueryClient();
   const [formVisible, setFormVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: event, isError: eventIsError } = useQuery({
     queryKey: ["event", eventId],
     queryFn: () => apiRequest<EventDetail>(`/api/events/${eventId}`),
   });
+
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const token = await getToken();
+      const safeName = (event?.name || "event").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+      const fileUri = `${cacheDirectory}csi-wf-${safeName}.pdf`;
+      const result = await downloadAsync(`${API_BASE_URL}/api/events/${eventId}/pdf`, fileUri, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(result.uri, { mimeType: "application/pdf" });
+      } else {
+        Alert.alert("Saved", `Report saved to ${result.uri}`);
+      }
+    } catch (error: any) {
+      Alert.alert("Export failed", error.message || "Could not generate the PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={handleExportPdf} disabled={isExporting} style={{ marginRight: 12, opacity: isExporting ? 0.4 : 1 }}>
+          <Ionicons name="download-outline" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, isExporting, event, eventId, colors]);
 
   const { data: expenses = [], isFetching, isError: expensesIsError } = useQuery({
     queryKey: ["expenses", "event", eventId],
@@ -33,6 +72,7 @@ export default function EventDetailScreen({ route }: Props) {
       queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] });
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
     onError: (error: any) => Alert.alert("Could not delete expense", error.message),
   });
@@ -108,7 +148,7 @@ export default function EventDetailScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   summaryCard: { backgroundColor: colors.surface, margin: 16, marginBottom: 0, padding: 16, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
   eventDetails: { color: colors.textSecondary, marginBottom: 8 },

@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { apiRequest } from "../../lib/api";
 import { setToken } from "../../lib/authStorage";
 import { useAuth } from "../../contexts/AuthContext";
-import { colors } from "../../theme";
+import type { ThemeColors } from "../../theme";
+import { useTheme } from "../../contexts/ThemeContext";
 
 // First-ever launch: set the starting balance, then set the PIN that will
 // protect the app from then on. Two steps in one screen since both are
 // required before the account can be created.
 export default function OnboardingScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { login, markSetUp } = useAuth();
   const [openingBalance, setOpeningBalance] = useState("");
   const [pin, setPin] = useState("");
@@ -88,7 +91,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: "center" },
   title: { fontSize: 26, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 24 },
