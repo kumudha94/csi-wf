@@ -62,6 +62,17 @@ every screen that shows "balance" shows both, labeled.
      entry (amount, date, note), a Donation entry (amount, date, donor
      name, note), and a meeting expense (description, amount, date — same
      free-text pattern as existing expense form, no category picker).
+     - **Donor name autocomplete:** while typing `donor_name` on the
+       Donation form, match against `members.name` (client-side filter of
+       the already-loaded members list, same as Members screen search) and
+       show matches in a dropdown below the field. Selecting one fills the
+       field with that member's name. Typing without selecting a suggestion
+       is valid — `donor_name` stays plain free text, no FK to `members`,
+       so non-member donors are unaffected.
+     - **List entries** (Offering, Donation, and meeting expense rows, plus
+       existing Contribution rows) follow the Members screen convention:
+       tap a row to open it pre-filled in the same form for editing;
+       trailing trash icon opens a destructive confirm-delete `Alert`.
 2. **Reports** — date-range totals extend to break down by fund: Cash Fund
    (offering total, donation total, expenses, closing balance) alongside
    the existing Bank Fund breakdown (contributions, event/general
@@ -84,8 +95,9 @@ Mirrors the existing app's approach — no new patterns introduced:
   paid/pending filtering, unlike Bank Fund — worth a dedicated test to
   catch that difference), and CRUD validation for the two new tables.
 - Mobile: manual verification of golden paths (log offering → Cash Fund
-  balance updates, log donation with donor name, log meeting expense,
-  view both funds on Reports).
+  balance updates, log donation with donor-name autocomplete — both
+  selecting a suggested member and typing a non-member name, log meeting
+  expense, edit and delete each entry type, view both funds on Reports).
 
 ## Out of Scope (explicitly deferred)
 
