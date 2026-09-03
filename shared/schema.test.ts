@@ -158,6 +158,37 @@ describe("insertCashFundIncomeSchema", () => {
     expect(insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 0, date: "2026-09-01" }).success).toBe(false);
     expect(insertCashFundIncomeSchema.safeParse({ type: "offering", amount: -5, date: "2026-09-01" }).success).toBe(false);
   });
+
+  it("accepts a donorName at the 150-character limit", () => {
+    const donorName = "A".repeat(150);
+    const result = insertCashFundIncomeSchema.safeParse({
+      type: "donation",
+      amount: 100,
+      date: "2026-09-01",
+      donorName,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a donorName over the 150-character limit", () => {
+    const donorName = "A".repeat(151);
+    const result = insertCashFundIncomeSchema.safeParse({
+      type: "donation",
+      amount: 100,
+      date: "2026-09-01",
+      donorName,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a malformed date", () => {
+    expect(
+      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 100, date: "01-09-2026" }).success
+    ).toBe(false);
+    expect(
+      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 100, date: "2026-9-1" }).success
+    ).toBe(false);
+  });
 });
 
 describe("insertCashFundExpenseSchema", () => {
@@ -172,5 +203,14 @@ describe("insertCashFundExpenseSchema", () => {
 
   it("rejects a zero or negative amount", () => {
     expect(insertCashFundExpenseSchema.safeParse({ description: "Auto fare", amount: 0, date: "2026-09-01" }).success).toBe(false);
+  });
+
+  it("rejects a malformed date", () => {
+    expect(
+      insertCashFundExpenseSchema.safeParse({ description: "Auto fare", amount: 10, date: "01-09-2026" }).success
+    ).toBe(false);
+    expect(
+      insertCashFundExpenseSchema.safeParse({ description: "Auto fare", amount: 10, date: "2026-9-1" }).success
+    ).toBe(false);
   });
 });

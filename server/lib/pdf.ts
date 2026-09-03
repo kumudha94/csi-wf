@@ -75,7 +75,7 @@ function buildLedgerRows(data: ReportPdfData): LedgerRow[] {
 // Same LedgerRow shape as the bank ledger, reusing drawLedgerTable() below.
 // Cash Fund has no pending state, so every debit reduces the running
 // balance immediately (unlike buildLedgerRows(), which checks status).
-function buildCashLedgerRows(data: ReportPdfData["cashFund"]): LedgerRow[] {
+export function buildCashLedgerRows(data: ReportPdfData["cashFund"]): LedgerRow[] {
   type UnbalancedRow = Omit<LedgerRow, "balance"> & { order: number };
   const rows: UnbalancedRow[] = [];
 
