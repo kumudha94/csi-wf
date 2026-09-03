@@ -66,12 +66,44 @@ export type Contribution = {
   createdAt: string;
 };
 
-export type BalanceResponse = {
+export type CashIncomeType = "offering" | "donation";
+
+export type CashFundIncome = {
+  id: number;
+  type: CashIncomeType;
+  amount: number;
+  date: string;
+  donorName: string | null;
+  note: string | null;
+  createdAt: string;
+};
+
+export type CashFundExpense = {
+  id: number;
+  description: string;
+  amount: number;
+  date: string;
+  createdAt: string;
+};
+
+export type BankFundBalance = {
   openingBalance: number;
   totalContributions: number;
   totalPaidExpenses: number;
   totalPendingExpenses: number;
   balance: number;
+};
+
+export type CashFundBalanceSummary = {
+  openingBalance: number;
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+};
+
+export type BalanceResponse = {
+  bankFund: BankFundBalance;
+  cashFund: CashFundBalanceSummary;
 };
 
 export type ReportExpenseRow = {
@@ -89,6 +121,31 @@ export type ReportContributionRow = {
   note: string | null;
 };
 
+export type ReportCashIncomeRow = {
+  type: CashIncomeType;
+  amount: number;
+  date: string;
+  donorName: string | null;
+  note: string | null;
+};
+
+export type ReportCashExpenseRow = {
+  description: string;
+  amount: number;
+  date: string;
+};
+
+export type ReportCashFund = {
+  openingBalance: number;
+  totalIncome: number;
+  totalOffering: number;
+  totalDonation: number;
+  totalExpenses: number;
+  closingBalance: number;
+  income: ReportCashIncomeRow[];
+  expenses: ReportCashExpenseRow[];
+};
+
 export type ReportResponse = {
   from: string;
   to: string;
@@ -99,4 +156,5 @@ export type ReportResponse = {
   closingBalance: number;
   expenses: ReportExpenseRow[];
   contributions: ReportContributionRow[];
+  cashFund: ReportCashFund;
 };
