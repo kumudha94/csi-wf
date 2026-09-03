@@ -152,6 +152,10 @@ function drawLedgerTable(doc: PDFKit.PDFDocument, rows: LedgerRow[]) {
     doc.moveDown(0.4);
   }
 
+  if (doc.y > bottomLimit - 40) {
+    doc.addPage();
+    doc.y = doc.page.margins.top;
+  }
   drawHeader();
 
   if (rows.length === 0) {
@@ -207,6 +211,7 @@ export function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
     doc.fontSize(9);
     drawLedgerTable(doc, buildLedgerRows(data));
 
+    doc.fontSize(11);
     doc.moveDown(1.5);
     doc.fontSize(13).text("Cash Fund (Offering & Donation)");
     doc.fontSize(11);

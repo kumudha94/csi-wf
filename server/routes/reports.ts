@@ -20,7 +20,7 @@ async function buildReport(from: string, to: string) {
   const totals = await reportsStorage.getReportTotals({ from, to });
   const settingsRow = await getSettings();
 
-  // `settings.openingBalance` is the balance at the ledger's inception, which
+  // `settings.bankOpeningBalance` is the balance at the ledger's inception, which
   // is only this report's opening balance when `from` is that inception. For
   // any later range, roll it forward through everything that happened before
   // `from` — otherwise the closing balance silently omits all of that history.

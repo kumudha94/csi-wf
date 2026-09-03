@@ -15,7 +15,7 @@ export type OpeningBalanceUpdate = {
 
 export async function setOpeningBalances(data: OpeningBalanceUpdate): Promise<Settings> {
   const existing = await getSettings();
-  const values: Record<string, string> = {};
+  const values: Partial<Pick<Settings, "bankOpeningBalance" | "cashOpeningBalance">> = {};
   if (data.bankOpeningBalance !== undefined) values.bankOpeningBalance = toMoney(data.bankOpeningBalance);
   if (data.cashOpeningBalance !== undefined) values.cashOpeningBalance = toMoney(data.cashOpeningBalance);
 
