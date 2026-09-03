@@ -11,6 +11,16 @@ export type ReportPdfData = {
   closingBalance: number;
   expenses: { eventName: string | null; description: string; amount: string; status: string; date: string }[];
   contributions: { memberName: string; amount: string; date: string; note: string | null }[];
+  cashFund: {
+    openingBalance: number;
+    totalIncome: number;
+    totalOffering: number;
+    totalDonation: number;
+    totalExpenses: number;
+    closingBalance: number;
+    income: { type: string; amount: string; date: string; donorName: string | null; note: string | null }[];
+    expenses: { description: string; amount: string; date: string }[];
+  };
 };
 
 type LedgerRow = {
@@ -58,6 +68,48 @@ function buildLedgerRows(data: ReportPdfData): LedgerRow[] {
   return rows.map((r) => {
     balance += r.credit;
     if (r.debit > 0 && r.status.toLowerCase() === "paid") balance -= r.debit;
+    return { ...r, balance };
+  });
+}
+
+// Same LedgerRow shape as the bank ledger, reusing drawLedgerTable() below.
+// Cash Fund has no pending state, so every debit reduces the running
+// balance immediately (unlike buildLedgerRows(), which checks status).
+function buildCashLedgerRows(data: ReportPdfData["cashFund"]): LedgerRow[] {
+  type UnbalancedRow = Omit<LedgerRow, "balance"> & { order: number };
+  const rows: UnbalancedRow[] = [];
+
+  data.income.forEach((inc, i) => {
+    const label = inc.type === "donation" ? "Donation" : "Offering";
+    const who = inc.type === "donation" && inc.donorName ? ` - ${inc.donorName}` : "";
+    const noteSuffix = inc.note ? ` (${inc.note})` : "";
+    rows.push({
+      date: inc.date,
+      description: `${label}${who}${noteSuffix}`,
+      credit: fromMoney(inc.amount),
+      debit: 0,
+      status: "Received",
+      order: i,
+    });
+  });
+
+  data.expenses.forEach((e, i) => {
+    rows.push({
+      date: e.date,
+      description: e.description,
+      credit: 0,
+      debit: fromMoney(e.amount),
+      status: "Paid",
+      order: data.income.length + i,
+    });
+  });
+
+  rows.sort((a, b) => (a.date === b.date ? a.order - b.order : a.date.localeCompare(b.date)));
+
+  let balance = data.openingBalance;
+  return rows.map((r) => {
+    balance += r.credit;
+    balance -= r.debit;
     return { ...r, balance };
   });
 }
@@ -154,6 +206,19 @@ export function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
     doc.moveDown(0.3);
     doc.fontSize(9);
     drawLedgerTable(doc, buildLedgerRows(data));
+
+    doc.moveDown(1.5);
+    doc.fontSize(13).text("Cash Fund (Offering & Donation)");
+    doc.fontSize(11);
+    doc.text(`Opening balance: Rs. ${data.cashFund.openingBalance.toFixed(2)}`);
+    doc.text(`Offering received: Rs. ${data.cashFund.totalOffering.toFixed(2)}`);
+    doc.text(`Donations received: Rs. ${data.cashFund.totalDonation.toFixed(2)}`);
+    doc.text(`Expenses: Rs. ${data.cashFund.totalExpenses.toFixed(2)}`);
+    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.cashFund.closingBalance.toFixed(2)}`);
+    doc.font("Helvetica");
+    doc.moveDown(1);
+    doc.fontSize(9);
+    drawLedgerTable(doc, buildCashLedgerRows(data.cashFund));
 
     doc.end();
   });
