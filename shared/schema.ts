@@ -74,6 +74,21 @@ export const insertAttributeDefinitionSchema = z
   });
 export type AttributeDefinitionInput = z.infer<typeof insertAttributeDefinitionSchema>;
 
+// `key` is intentionally excluded here — it's the join column member_attribute_values.attributeKey
+// relies on, so renaming it after values exist would silently orphan them. Editing is limited to
+// the display-facing fields.
+export const updateAttributeDefinitionSchema = z
+  .object({
+    label: z.string().min(1, "Label is required").max(100).optional(),
+    type: z.enum(ATTRIBUTE_TYPES).optional(),
+    options: z.array(z.string().trim().min(1)).max(50).optional(),
+  })
+  .refine((data) => data.type !== "list" || (data.options && data.options.length > 0), {
+    message: "List fields need at least one option",
+    path: ["options"],
+  });
+export type AttributeDefinitionUpdateInput = z.infer<typeof updateAttributeDefinitionSchema>;
+
 // ---------- member_attribute_values ----------
 export const memberAttributeValues = pgTable(
   "member_attribute_values",

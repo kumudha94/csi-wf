@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { insertAttributeDefinitionSchema } from "@shared/schema";
+import { insertAttributeDefinitionSchema, updateAttributeDefinitionSchema } from "@shared/schema";
 import * as attributesStorage from "../storage/attributes";
 import { wrap } from "../lib/asyncHandler";
 import { parseId } from "../lib/parseId";
@@ -28,6 +28,28 @@ attributesRouter.post(
       }
       throw error;
     }
+  })
+);
+
+attributesRouter.patch(
+  "/:id",
+  wrap(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const data = updateAttributeDefinitionSchema.parse(req.body);
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: "No fields to update" });
+      return;
+    }
+    const attr = await attributesStorage.updateAttributeDefinition(id, data);
+    if (!attr) {
+      res.status(404).json({ error: "Attribute not found" });
+      return;
+    }
+    res.json(attr);
   })
 );
 

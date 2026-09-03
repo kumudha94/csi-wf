@@ -8,9 +8,9 @@ export async function listMembers(search?: string): Promise<Member[]> {
       .select()
       .from(members)
       .where(or(ilike(members.name, `%${search}%`), ilike(members.santhaNumber, `%${search}%`)))
-      .orderBy(members.name);
+      .orderBy(members.santhaNumber);
   }
-  return db.select().from(members).orderBy(members.name);
+  return db.select().from(members).orderBy(members.santhaNumber);
 }
 
 export async function getMember(id: number) {

@@ -12,6 +12,7 @@ import { formatCurrency } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 import ExpenseForm from "../components/ExpenseForm";
+import EventForm from "../components/EventForm";
 import type { EventsStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<EventsStackParamList, "EventDetail">;
@@ -24,6 +25,7 @@ export default function EventDetailScreen({ route, navigation }: Props) {
   const [formVisible, setFormVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [eventFormVisible, setEventFormVisible] = useState(false);
 
   const { data: event, isError: eventIsError } = useQuery({
     queryKey: ["event", eventId],
@@ -54,9 +56,14 @@ export default function EventDetailScreen({ route, navigation }: Props) {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={handleExportPdf} disabled={isExporting} style={{ marginRight: 12, opacity: isExporting ? 0.4 : 1 }}>
-          <Ionicons name="download-outline" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity onPress={() => setEventFormVisible(true)} disabled={!event} style={{ marginRight: 16, opacity: event ? 1 : 0.4 }}>
+            <Ionicons name="pencil-outline" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleExportPdf} disabled={isExporting} style={{ marginRight: 12, opacity: isExporting ? 0.4 : 1 }}>
+            <Ionicons name="download-outline" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
       ),
     });
   }, [navigation, isExporting, event, eventId, colors]);
@@ -103,25 +110,29 @@ export default function EventDetailScreen({ route, navigation }: Props) {
         refreshing={isFetching}
         onRefresh={() => queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] })}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => {
-              setEditingExpense(item);
-              setFormVisible(true);
-            }}
-            onLongPress={() => confirmDelete(item)}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.expenseDescription}>{item.description}</Text>
-              <Text style={styles.expenseMeta}>{item.date}</Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
-              <Text style={[styles.badge, item.status === "paid" ? styles.badgePaid : styles.badgePending]}>
-                {item.status}
-              </Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.cardContent}
+              onPress={() => {
+                setEditingExpense(item);
+                setFormVisible(true);
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.expenseDescription}>{item.description}</Text>
+                <Text style={styles.expenseMeta}>{item.date}</Text>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
+                <Text style={[styles.badge, item.status === "paid" ? styles.badgePaid : styles.badgePending]}>
+                  {item.status}
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+              <Ionicons name="trash-outline" size={20} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>{expensesIsError ? "Could not load expenses." : "No expenses yet for this event."}</Text>}
         contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
@@ -144,6 +155,8 @@ export default function EventDetailScreen({ route, navigation }: Props) {
         expense={editingExpense}
         invalidateKey={["expenses", "event", eventId]}
       />
+
+      <EventForm visible={eventFormVisible} onClose={() => setEventFormVisible(false)} event={event} />
     </View>
   );
 }
@@ -162,8 +175,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
   },
+  cardContent: { flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  deleteButton: { paddingLeft: 12, marginLeft: 8 },
   expenseDescription: { fontSize: 15, fontWeight: "600", color: colors.textPrimary },
   expenseMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   expenseAmount: { fontSize: 15, fontWeight: "700", color: colors.textPrimary },

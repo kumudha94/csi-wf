@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
 import type { Member, MemberWithAttributes } from "../lib/types";
 import type { ThemeColors } from "../theme";
@@ -69,11 +70,16 @@ export default function MembersScreen() {
         refreshing={isFetching}
         onRefresh={() => queryClient.invalidateQueries({ queryKey: ["members"] })}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => openEdit(item)} onLongPress={() => confirmDelete(item)}>
-            <Text style={styles.memberName}>{item.name}</Text>
-            <Text style={styles.memberMeta}>Santha No: {item.santhaNumber}</Text>
-            {item.phone ? <Text style={styles.memberMeta}>{item.phone}</Text> : null}
-          </TouchableOpacity>
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.cardContent} onPress={() => openEdit(item)}>
+              <Text style={styles.memberName}>{item.name}</Text>
+              <Text style={styles.memberMeta}>Santha No: {item.santhaNumber}</Text>
+              {item.phone ? <Text style={styles.memberMeta}>{item.phone}</Text> : null}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+              <Ionicons name="trash-outline" size={20} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>No members yet. Tap "+ Add" to create one.</Text>}
         contentContainerStyle={{ padding: 16 }}
@@ -104,7 +110,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
   },
+  cardContent: { flex: 1 },
+  deleteButton: { paddingLeft: 12, marginLeft: 8 },
   memberName: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
   memberMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   emptyText: { textAlign: "center", color: colors.textMuted, marginTop: 40 },

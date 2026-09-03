@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
-import { useQuery } from "@tanstack/react-query";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
-import type { BalanceResponse, Expense } from "../lib/types";
+import type { BalanceResponse, Expense, Contribution } from "../lib/types";
 import { formatCurrency } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
@@ -14,10 +15,12 @@ type Tab = "contributions" | "expenses";
 export default function BalanceScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("expenses");
   const [contributionFormVisible, setContributionFormVisible] = useState(false);
   const [expenseFormVisible, setExpenseFormVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingContribution, setEditingContribution] = useState<Contribution | null>(null);
 
   const { data: balance, isError: balanceIsError } = useQuery({
     queryKey: ["balance"],
@@ -29,6 +32,24 @@ export default function BalanceScreen() {
     queryFn: () => apiRequest<Expense[]>("/api/expenses?eventId=general"),
     enabled: tab === "expenses",
   });
+
+  const deleteExpenseMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/expenses/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses", "general"] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+    },
+    onError: (error: any) => Alert.alert("Could not delete expense", error.message),
+  });
+
+  const confirmDeleteExpense = (expense: Expense) => {
+    Alert.alert("Delete expense", `Remove "${expense.description}"?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteExpenseMutation.mutate(expense.id) },
+    ]);
+  };
 
   return (
     <View style={styles.container}>
@@ -58,25 +79,35 @@ export default function BalanceScreen() {
           data={generalExpenses}
           keyExtractor={(e) => String(e.id)}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => {
-                setEditingExpense(item);
-                setExpenseFormVisible(true);
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.description}</Text>
-                <Text style={styles.cardMeta}>{item.date}</Text>
-              </View>
-              <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
-            </TouchableOpacity>
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.cardContent}
+                onPress={() => {
+                  setEditingExpense(item);
+                  setExpenseFormVisible(true);
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{item.description}</Text>
+                  <Text style={styles.cardMeta}>{item.date}</Text>
+                </View>
+                <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDeleteExpense(item)}>
+                <Ionicons name="trash-outline" size={20} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>{generalExpensesIsError ? "Could not load expenses." : "No general expenses yet."}</Text>}
           contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
         />
       ) : (
-        <RecentContributions />
+        <RecentContributions
+          onEdit={(c) => {
+            setEditingContribution(c);
+            setContributionFormVisible(true);
+          }}
+        />
       )}
 
       <TouchableOpacity
@@ -86,6 +117,7 @@ export default function BalanceScreen() {
             setEditingExpense(null);
             setExpenseFormVisible(true);
           } else {
+            setEditingContribution(null);
             setContributionFormVisible(true);
           }
         }}
@@ -100,20 +132,40 @@ export default function BalanceScreen() {
         expense={editingExpense}
         invalidateKey={["expenses", "general"]}
       />
-      <ContributionForm visible={contributionFormVisible} onClose={() => setContributionFormVisible(false)} />
+      <ContributionForm
+        visible={contributionFormVisible}
+        onClose={() => setContributionFormVisible(false)}
+        contribution={editingContribution}
+      />
     </View>
   );
 }
 
-function RecentContributions() {
+function RecentContributions({ onEdit }: { onEdit: (contribution: Contribution) => void }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const queryClient = useQueryClient();
   const { data: contributions = [], isError: contributionsIsError } = useQuery({
     queryKey: ["contributions"],
-    queryFn: () => apiRequest<{ id: number; memberId: number; amount: number; date: string; note: string | null }[]>(
-      "/api/contributions"
-    ),
+    queryFn: () => apiRequest<Contribution[]>("/api/contributions"),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/contributions/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contributions"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+    },
+    onError: (error: any) => Alert.alert("Could not delete contribution", error.message),
+  });
+
+  const confirmDelete = (contribution: Contribution) => {
+    Alert.alert("Delete contribution", `Remove this contribution of ${formatCurrency(contribution.amount)}?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteMutation.mutate(contribution.id) },
+    ]);
+  };
 
   return (
     <FlatList
@@ -121,11 +173,16 @@ function RecentContributions() {
       keyExtractor={(c) => String(c.id)}
       renderItem={({ item }) => (
         <View style={styles.card}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>{item.note || "Contribution"}</Text>
-            <Text style={styles.cardMeta}>{item.date}</Text>
-          </View>
-          <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
+          <TouchableOpacity style={styles.cardContent} onPress={() => onEdit(item)}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle}>{item.note || "Contribution"}</Text>
+              <Text style={styles.cardMeta}>{item.date}</Text>
+            </View>
+            <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+            <Ionicons name="trash-outline" size={20} color={colors.danger} />
+          </TouchableOpacity>
         </View>
       )}
       ListEmptyComponent={<Text style={styles.emptyText}>{contributionsIsError ? "Could not load contributions." : "No contributions logged yet."}</Text>}
@@ -153,8 +210,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
   },
+  cardContent: { flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  deleteButton: { paddingLeft: 12, marginLeft: 8 },
   cardTitle: { fontSize: 15, fontWeight: "600", color: colors.textPrimary },
   cardMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   cardAmount: { fontSize: 15, fontWeight: "700", color: colors.textPrimary },

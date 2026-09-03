@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { apiRequest } from "../lib/api";
-import type { AttributeDefinition, AttributeType } from "../lib/types";
 import type { ThemeColors } from "../theme";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme, type ThemeMode } from "../contexts/ThemeContext";
+import type { SettingsStackParamList } from "../navigation/types";
 
 function AppearanceSection() {
   const { colors, mode, setMode } = useTheme();
@@ -80,139 +82,15 @@ function OpeningBalanceSection() {
   );
 }
 
-function CustomAttributesSection() {
+function CustomFieldsLink({ navigation }: { navigation: SettingsScreenProps["navigation"] }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const queryClient = useQueryClient();
-  const { data: attributes = [], isError: attributesError } = useQuery({
-    queryKey: ["attributes"],
-    queryFn: () => apiRequest<AttributeDefinition[]>("/api/attributes"),
-  });
-  const [key, setKey] = useState("");
-  const [label, setLabel] = useState("");
-  const [type, setType] = useState<AttributeType>("text");
-  const [options, setOptions] = useState<string[]>([]);
-  const [optionDraft, setOptionDraft] = useState("");
-
-  const addOption = () => {
-    const trimmed = optionDraft.trim();
-    if (!trimmed || options.includes(trimmed)) {
-      setOptionDraft("");
-      return;
-    }
-    setOptions((prev) => [...prev, trimmed]);
-    setOptionDraft("");
-  };
-
-  const createMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("/api/attributes", {
-        method: "POST",
-        body: JSON.stringify({ key: key.trim(), label: label.trim(), type, options: type === "list" ? options : undefined }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attributes"] });
-      setKey("");
-      setLabel("");
-      setType("text");
-      setOptions([]);
-      setOptionDraft("");
-    },
-    onError: (error: any) => Alert.alert("Could not add attribute", error.message),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/attributes/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attributes"] }),
-    onError: (error: any) => Alert.alert("Could not remove attribute", error.message),
-  });
 
   return (
-    <View style={styles.section}>
+    <TouchableOpacity style={[styles.section, styles.linkRow]} onPress={() => navigation.navigate("CustomFields")}>
       <Text style={styles.sectionTitle}>Custom Member Fields</Text>
-      {attributesError && <Text style={{ color: colors.danger, fontSize: 12, marginBottom: 8 }}>Could not load fields.</Text>}
-      <FlatList
-        data={attributes}
-        keyExtractor={(a) => String(a.id)}
-        scrollEnabled={false}
-        renderItem={({ item }) => (
-          <View style={styles.attributeRow}>
-            <Text style={{ color: colors.textPrimary }}>
-              {item.label}{" "}
-              <Text style={{ color: colors.textMuted }}>
-                ({item.type === "list" && item.options?.length ? `list: ${item.options.join(", ")}` : item.type})
-              </Text>
-            </Text>
-            <TouchableOpacity
-              onPress={() =>
-                Alert.alert("Remove field", `Remove "${item.label}"? Existing member values for it are kept but hidden.`, [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Remove", style: "destructive", onPress: () => deleteMutation.mutate(item.id) },
-                ])
-              }
-            >
-              <Text style={{ color: colors.danger, fontWeight: "600" }}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
-
-      <Text style={styles.label}>Field label (e.g. "Blood Group")</Text>
-      <TextInput style={styles.input} value={label} onChangeText={setLabel} placeholder="Field label" />
-      <Text style={styles.label}>Field key (lowercase, no spaces, e.g. "blood_group")</Text>
-      <TextInput style={styles.input} value={key} onChangeText={setKey} placeholder="field_key" autoCapitalize="none" />
-      <View style={styles.typeRow}>
-        {(["text", "number", "date", "list"] as AttributeType[]).map((t) => (
-          <TouchableOpacity key={t} style={[styles.typeOption, type === t && styles.typeOptionActive]} onPress={() => setType(t)}>
-            <Text style={[styles.typeOptionText, type === t && styles.typeOptionTextActive]}>{t}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {type === "list" && (
-        <>
-          <Text style={styles.label}>List options</Text>
-          <View style={styles.optionInputRow}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={optionDraft}
-              onChangeText={setOptionDraft}
-              placeholder="e.g. A+"
-              onSubmitEditing={addOption}
-              returnKeyType="done"
-            />
-            <TouchableOpacity style={styles.addOptionButton} onPress={addOption}>
-              <Text style={styles.buttonText}>Add</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.optionChipRow}>
-            {options.map((opt) => (
-              <TouchableOpacity key={opt} style={styles.optionChip} onPress={() => setOptions((prev) => prev.filter((o) => o !== opt))}>
-                <Text style={styles.optionChipText}>{opt} ✕</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => {
-          if (!label.trim() || !key.trim()) {
-            Alert.alert("Missing details", "Enter both a field label and a key.");
-            return;
-          }
-          if (type === "list" && options.length === 0) {
-            Alert.alert("Missing options", "Add at least one option for a list field.");
-            return;
-          }
-          createMutation.mutate();
-        }}
-        disabled={createMutation.isPending}
-      >
-        <Text style={styles.buttonText}>{createMutation.isPending ? "Adding..." : "Add Field"}</Text>
-      </TouchableOpacity>
-    </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+    </TouchableOpacity>
   );
 }
 
@@ -255,14 +133,16 @@ function ChangePinSection() {
   );
 }
 
-export default function SettingsScreen() {
+type SettingsScreenProps = NativeStackScreenProps<SettingsStackParamList, "SettingsHome">;
+
+export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <AppearanceSection />
       <OpeningBalanceSection />
-      <CustomAttributesSection />
+      <CustomFieldsLink navigation={navigation} />
       <ChangePinSection />
     </ScrollView>
   );
@@ -271,20 +151,15 @@ export default function SettingsScreen() {
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   section: { backgroundColor: colors.surface, borderRadius: 10, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  linkRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: colors.textPrimary, marginBottom: 12 },
   label: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginBottom: 6, marginTop: 12 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, backgroundColor: colors.background, color: colors.textPrimary },
   button: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 16 },
   buttonText: { color: colors.white, fontWeight: "600" },
-  attributeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   typeRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   typeOption: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: colors.border },
   typeOptionActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   typeOptionText: { color: colors.textSecondary, fontSize: 12, fontWeight: "600" },
   typeOptionTextActive: { color: colors.primary },
-  optionInputRow: { flexDirection: "row", gap: 8 },
-  addOptionButton: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
-  optionChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
-  optionChip: { backgroundColor: colors.primarySoft, borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12 },
-  optionChipText: { color: colors.primary, fontSize: 12, fontWeight: "600" },
 });

@@ -14,9 +14,10 @@ import MembersScreen from "./src/screens/MembersScreen";
 import EventsScreen from "./src/screens/EventsScreen";
 import EventDetailScreen from "./src/screens/EventDetailScreen";
 import BalanceScreen from "./src/screens/BalanceScreen";
-import type { EventsStackParamList } from "./src/navigation/types";
+import type { EventsStackParamList, SettingsStackParamList } from "./src/navigation/types";
 import ReportsScreen from "./src/screens/ReportsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import CustomFieldsScreen from "./src/screens/CustomFieldsScreen";
 import OnboardingScreen from "./src/screens/auth/OnboardingScreen";
 import PinLoginScreen from "./src/screens/auth/PinLoginScreen";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
@@ -36,6 +37,7 @@ export type TabParamList = {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const EventsStack = createNativeStackNavigator<EventsStackParamList>();
+const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 
 function EventsStackNavigator() {
   const { colors } = useTheme();
@@ -44,6 +46,16 @@ function EventsStackNavigator() {
       <EventsStack.Screen name="EventsList" component={EventsScreen} options={{ title: "Events" }} />
       <EventsStack.Screen name="EventDetail" component={EventDetailScreen} options={{ title: "Event" }} />
     </EventsStack.Navigator>
+  );
+}
+
+function SettingsStackNavigator() {
+  const { colors } = useTheme();
+  return (
+    <SettingsStack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.textPrimary }}>
+      <SettingsStack.Screen name="SettingsHome" component={SettingsScreen} options={{ title: "Settings" }} />
+      <SettingsStack.Screen name="CustomFields" component={CustomFieldsScreen} options={{ title: "Custom Member Fields" }} />
+    </SettingsStack.Navigator>
   );
 }
 
@@ -72,7 +84,7 @@ function TabNavigator() {
       <Tab.Screen name="Events" component={EventsStackNavigator} options={{ headerShown: false }} />
       <Tab.Screen name="Balance" component={BalanceScreen} />
       <Tab.Screen name="Reports" component={ReportsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Settings" component={SettingsStackNavigator} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
 }
