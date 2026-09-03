@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { contributions, expenses, events } from "@shared/schema";
+import { contributions, expenses, events, cashFundIncome, cashFundExpenses } from "@shared/schema";
 import { sql, and, gte, lte, lt, eq } from "drizzle-orm";
 
 export type ReportRange = { from: string; to: string };
@@ -74,4 +74,64 @@ export async function getContributionsInRange({ from, to }: ReportRange) {
     .from(contributions)
     .where(and(gte(contributions.date, from), lte(contributions.date, to)))
     .orderBy(contributions.date);
+}
+
+export async function getCashReportTotals({ from, to }: ReportRange) {
+  const [incomeRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
+    .from(cashFundIncome)
+    .where(and(gte(cashFundIncome.date, from), lte(cashFundIncome.date, to)));
+
+  const [offeringRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
+    .from(cashFundIncome)
+    .where(and(gte(cashFundIncome.date, from), lte(cashFundIncome.date, to), eq(cashFundIncome.type, "offering")));
+
+  const [donationRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
+    .from(cashFundIncome)
+    .where(and(gte(cashFundIncome.date, from), lte(cashFundIncome.date, to), eq(cashFundIncome.type, "donation")));
+
+  const [expenseRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundExpenses.amount}), 0)` })
+    .from(cashFundExpenses)
+    .where(and(gte(cashFundExpenses.date, from), lte(cashFundExpenses.date, to)));
+
+  return {
+    totalCashIncome: incomeRow.total,
+    totalOffering: offeringRow.total,
+    totalDonation: donationRow.total,
+    totalCashExpenses: expenseRow.total,
+  };
+}
+
+// Mirrors getPriorActivity() above, for the Cash Fund's rolling opening balance.
+export async function getCashPriorActivity(before: string) {
+  const [incomeRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
+    .from(cashFundIncome)
+    .where(lt(cashFundIncome.date, before));
+
+  const [expenseRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundExpenses.amount}), 0)` })
+    .from(cashFundExpenses)
+    .where(lt(cashFundExpenses.date, before));
+
+  return { totalCashIncome: incomeRow.total, totalCashExpenses: expenseRow.total };
+}
+
+export async function getCashFundEntriesInRange({ from, to }: ReportRange) {
+  const income = await db
+    .select()
+    .from(cashFundIncome)
+    .where(and(gte(cashFundIncome.date, from), lte(cashFundIncome.date, to)))
+    .orderBy(cashFundIncome.date);
+
+  const expenseRows = await db
+    .select()
+    .from(cashFundExpenses)
+    .where(and(gte(cashFundExpenses.date, from), lte(cashFundExpenses.date, to)))
+    .orderBy(cashFundExpenses.date);
+
+  return { income, expenses: expenseRows };
 }
