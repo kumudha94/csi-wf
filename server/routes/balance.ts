@@ -9,7 +9,35 @@ balanceRouter.get(
   "/",
   wrap(async (_req, res) => {
     const inputs = await getBalanceInputs();
-    const balance = computeBalance(inputs);
-    res.json({ ...inputs, balance });
+
+    const bankBalance = computeBalance({
+      openingBalance: inputs.bankOpeningBalance,
+      totalContributions: inputs.totalContributions,
+      totalPaidExpenses: inputs.totalPaidExpenses,
+    });
+    // Cash Fund has no pending-expense concept, so this reuses the exact
+    // same formula shape with cash income/expenses in place of
+    // contributions/paid-expenses.
+    const cashBalance = computeBalance({
+      openingBalance: inputs.cashOpeningBalance,
+      totalContributions: inputs.totalCashIncome,
+      totalPaidExpenses: inputs.totalCashExpenses,
+    });
+
+    res.json({
+      bankFund: {
+        openingBalance: inputs.bankOpeningBalance,
+        totalContributions: inputs.totalContributions,
+        totalPaidExpenses: inputs.totalPaidExpenses,
+        totalPendingExpenses: inputs.totalPendingExpenses,
+        balance: bankBalance,
+      },
+      cashFund: {
+        openingBalance: inputs.cashOpeningBalance,
+        totalIncome: inputs.totalCashIncome,
+        totalExpenses: inputs.totalCashExpenses,
+        balance: cashBalance,
+      },
+    });
   })
 );

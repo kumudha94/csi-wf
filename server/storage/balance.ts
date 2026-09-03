@@ -1,18 +1,22 @@
 import { db } from "../db";
-import { contributions, expenses, settings } from "@shared/schema";
+import { contributions, expenses, settings, cashFundIncome, cashFundExpenses } from "@shared/schema";
 import { sql, eq } from "drizzle-orm";
 import { fromMoney } from "../lib/money";
 
 export type BalanceInputs = {
-  openingBalance: number;
+  bankOpeningBalance: number;
   totalContributions: number;
   totalPaidExpenses: number;
   totalPendingExpenses: number;
+  cashOpeningBalance: number;
+  totalCashIncome: number;
+  totalCashExpenses: number;
 };
 
 export async function getBalanceInputs(): Promise<BalanceInputs> {
   const [settingsRow] = await db.select().from(settings).limit(1);
-  const openingBalance = settingsRow ? fromMoney(settingsRow.openingBalance) : 0;
+  const bankOpeningBalance = settingsRow ? fromMoney(settingsRow.bankOpeningBalance) : 0;
+  const cashOpeningBalance = settingsRow ? fromMoney(settingsRow.cashOpeningBalance) : 0;
 
   const [contribRow] = await db
     .select({ total: sql<string>`coalesce(sum(${contributions.amount}), 0)` })
@@ -31,5 +35,23 @@ export async function getBalanceInputs(): Promise<BalanceInputs> {
     .where(eq(expenses.status, "pending"));
   const totalPendingExpenses = fromMoney(pendingRow.total);
 
-  return { openingBalance, totalContributions, totalPaidExpenses, totalPendingExpenses };
+  const [cashIncomeRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
+    .from(cashFundIncome);
+  const totalCashIncome = fromMoney(cashIncomeRow.total);
+
+  const [cashExpenseRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundExpenses.amount}), 0)` })
+    .from(cashFundExpenses);
+  const totalCashExpenses = fromMoney(cashExpenseRow.total);
+
+  return {
+    bankOpeningBalance,
+    totalContributions,
+    totalPaidExpenses,
+    totalPendingExpenses,
+    cashOpeningBalance,
+    totalCashIncome,
+    totalCashExpenses,
+  };
 }
