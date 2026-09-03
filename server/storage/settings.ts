@@ -8,16 +8,27 @@ export async function getSettings(): Promise<Settings | null> {
   return row ?? null;
 }
 
-export async function setOpeningBalance(openingBalance: number): Promise<Settings> {
+export type OpeningBalanceUpdate = {
+  bankOpeningBalance?: number;
+  cashOpeningBalance?: number;
+};
+
+export async function setOpeningBalances(data: OpeningBalanceUpdate): Promise<Settings> {
   const existing = await getSettings();
+  const values: Record<string, string> = {};
+  if (data.bankOpeningBalance !== undefined) values.bankOpeningBalance = toMoney(data.bankOpeningBalance);
+  if (data.cashOpeningBalance !== undefined) values.cashOpeningBalance = toMoney(data.cashOpeningBalance);
+
   if (existing) {
-    const [row] = await db
-      .update(settings)
-      .set({ openingBalance: toMoney(openingBalance) })
-      .where(eq(settings.id, existing.id))
-      .returning();
+    const [row] = await db.update(settings).set(values).where(eq(settings.id, existing.id)).returning();
     return row;
   }
-  const [row] = await db.insert(settings).values({ openingBalance: toMoney(openingBalance) }).returning();
+  const [row] = await db
+    .insert(settings)
+    .values({
+      bankOpeningBalance: toMoney(data.bankOpeningBalance ?? 0),
+      cashOpeningBalance: toMoney(data.cashOpeningBalance ?? 0),
+    })
+    .returning();
   return row;
 }
