@@ -3,9 +3,15 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
-import type { AttributeDefinition, MemberWithAttributes } from "../lib/types";
+import type { AttributeDefinition, MemberStatus, MemberWithAttributes } from "../lib/types";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
+
+const MEMBER_STATUSES: { value: MemberStatus; label: string }[] = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+  { value: "died", label: "Died" },
+];
 
 type Props = {
   visible: boolean;
@@ -25,19 +31,27 @@ export default function MemberForm({ visible, onClose, member }: Props) {
   });
 
   const [name, setName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [santhaNumber, setSanthaNumber] = useState("");
+  const [oldMemNo, setOldMemNo] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [age, setAge] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [status, setStatus] = useState<MemberStatus>("active");
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (visible) {
       setName(member?.name || "");
+      setLastName(member?.lastName || "");
       setSanthaNumber(member?.santhaNumber || "");
+      setOldMemNo(member?.oldMemNo || "");
       setPhone(member?.phone || "");
       setAddress(member?.address || "");
       setAge(member?.age ? String(member.age) : "");
+      setRemarks(member?.remarks || "");
+      setStatus(member?.status || "active");
       const values: Record<string, string> = {};
       for (const attr of member?.attributes || []) {
         values[attr.attributeKey] = attr.value || "";
@@ -50,10 +64,14 @@ export default function MemberForm({ visible, onClose, member }: Props) {
     mutationFn: async () => {
       const payload = {
         name: name.trim(),
+        lastName: lastName.trim() || null,
         santhaNumber: santhaNumber.trim(),
+        oldMemNo: oldMemNo.trim() || null,
         phone: phone.trim() || null,
         address: address.trim() || null,
         age: age ? Number(age) : null,
+        remarks: remarks.trim() || null,
+        status,
       };
       const saved = isEditing
         ? await apiRequest<{ id: number }>(`/api/members/${member!.id}`, {
@@ -99,8 +117,14 @@ export default function MemberForm({ visible, onClose, member }: Props) {
         <Text style={styles.label}>Name *</Text>
         <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Full name" />
 
+        <Text style={styles.label}>Last Name</Text>
+        <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last name" />
+
         <Text style={styles.label}>Santha Number *</Text>
         <TextInput style={styles.input} value={santhaNumber} onChangeText={setSanthaNumber} placeholder="e.g. SW-101" />
+
+        <Text style={styles.label}>Old Member No</Text>
+        <TextInput style={styles.input} value={oldMemNo} onChangeText={setOldMemNo} placeholder="Old member number" />
 
         <Text style={styles.label}>Phone</Text>
         <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Phone number" keyboardType="phone-pad" />
@@ -117,6 +141,32 @@ export default function MemberForm({ visible, onClose, member }: Props) {
 
         <Text style={styles.label}>Age</Text>
         <TextInput style={styles.input} value={age} onChangeText={setAge} placeholder="Age" keyboardType="number-pad" />
+
+        <Text style={styles.label}>Remarks</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={remarks}
+          onChangeText={setRemarks}
+          placeholder="Remarks"
+          multiline
+          numberOfLines={3}
+        />
+
+        <Text style={styles.label}>Status</Text>
+        <View style={styles.optionRow}>
+          {MEMBER_STATUSES.map((opt) => {
+            const selected = status === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.optionChip, selected && styles.optionChipActive]}
+                onPress={() => setStatus(opt.value)}
+              >
+                <Text style={[styles.optionChipText, selected && styles.optionChipTextActive]}>{opt.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         {attributeDefs.map((attr) => (
           <View key={attr.key}>

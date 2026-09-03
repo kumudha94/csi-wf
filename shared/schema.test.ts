@@ -35,6 +35,29 @@ describe("insertMemberSchema", () => {
     const result = insertMemberSchema.safeParse({ name: "Grace Devi", santhaNumber: "SW-101" });
     expect(result.success).toBe(true);
   });
+
+  it("defaults status to active when omitted", () => {
+    const result = insertMemberSchema.safeParse({ name: "Grace Devi", santhaNumber: "SW-101" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.status).toBe("active");
+  });
+
+  it("accepts the new lastName, oldMemNo, remarks and status fields", () => {
+    const result = insertMemberSchema.safeParse({
+      name: "Grace Devi",
+      lastName: "Samuel",
+      santhaNumber: "SW-101",
+      oldMemNo: "42",
+      remarks: "Moved from another parish",
+      status: "inactive",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid status", () => {
+    const result = insertMemberSchema.safeParse({ name: "Grace Devi", santhaNumber: "SW-101", status: "unknown" });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("insertAttributeDefinitionSchema", () => {

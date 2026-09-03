@@ -1,10 +1,16 @@
+export type MemberStatus = "active" | "inactive" | "died";
+
 export type Member = {
   id: number;
   name: string;
+  lastName: string | null;
   santhaNumber: string;
+  oldMemNo: string | null;
   phone: string | null;
   address: string | null;
   age: number | null;
+  remarks: string | null;
+  status: MemberStatus;
   createdAt: string;
   updatedAt: string;
 };

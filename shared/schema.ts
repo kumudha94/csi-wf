@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, numeric, timestamp, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, serial, varchar, text, integer, numeric, timestamp, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // ---------- auth_account ----------
@@ -10,15 +10,23 @@ export const authAccount = pgTable("auth_account", {
 export type AuthAccount = typeof authAccount.$inferSelect;
 
 // ---------- members ----------
+export const MEMBER_STATUSES = ["active", "inactive", "died"] as const;
+export type MemberStatus = (typeof MEMBER_STATUSES)[number];
+export const memberStatusEnum = pgEnum("member_status", MEMBER_STATUSES);
+
 export const members = pgTable(
   "members",
   {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 150 }).notNull(),
+    lastName: varchar("last_name", { length: 150 }),
     santhaNumber: varchar("santha_number", { length: 50 }).notNull(),
+    oldMemNo: varchar("old_mem_no", { length: 50 }),
     phone: varchar("phone", { length: 20 }),
     address: text("address"),
     age: integer("age"),
+    remarks: text("remarks"),
+    status: memberStatusEnum("status").notNull().default("active"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -30,10 +38,14 @@ export type Member = typeof members.$inferSelect;
 
 export const insertMemberSchema = z.object({
   name: z.string().min(1, "Name is required").max(150),
+  lastName: z.string().max(150).nullable().optional(),
   santhaNumber: z.string().min(1, "Santha number is required").max(50),
+  oldMemNo: z.string().max(50).nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
   address: z.string().nullable().optional(),
   age: z.coerce.number().int().positive().max(150).nullable().optional(),
+  remarks: z.string().nullable().optional(),
+  status: z.enum(MEMBER_STATUSES).default("active"),
 });
 export type MemberInput = z.infer<typeof insertMemberSchema>;
 

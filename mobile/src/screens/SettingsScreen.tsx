@@ -168,7 +168,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <AppearanceSection />
       <OpeningBalanceSection />
-      <CustomFieldsLink navigation={navigation} />
+      {/* Custom Member Fields is superseded by first-class member columns; hidden from the menu but left wired up. */}
       <ChangePinSection />
     </ScrollView>
   );
