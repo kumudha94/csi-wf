@@ -5,6 +5,8 @@ import {
   insertEventSchema,
   insertExpenseSchema,
   insertContributionSchema,
+  insertCashFundIncomeSchema,
+  insertCashFundExpenseSchema,
 } from "./schema";
 
 describe("insertMemberSchema", () => {
@@ -124,5 +126,51 @@ describe("insertContributionSchema", () => {
     expect(insertContributionSchema.safeParse({ memberId: 1, amount: -5, date: "2026-08-29" }).success).toBe(
       false
     );
+  });
+});
+
+describe("insertCashFundIncomeSchema", () => {
+  it("accepts a valid offering entry", () => {
+    const result = insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 350, date: "2026-09-01" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a donation with a donor name", () => {
+    const result = insertCashFundIncomeSchema.safeParse({
+      type: "donation",
+      amount: 1000,
+      date: "2026-09-01",
+      donorName: "Grace Devi",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a donation with no donor name (non-member donor)", () => {
+    const result = insertCashFundIncomeSchema.safeParse({ type: "donation", amount: 500, date: "2026-09-01" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid type", () => {
+    expect(insertCashFundIncomeSchema.safeParse({ type: "tithe", amount: 100, date: "2026-09-01" }).success).toBe(false);
+  });
+
+  it("rejects a zero or negative amount", () => {
+    expect(insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 0, date: "2026-09-01" }).success).toBe(false);
+    expect(insertCashFundIncomeSchema.safeParse({ type: "offering", amount: -5, date: "2026-09-01" }).success).toBe(false);
+  });
+});
+
+describe("insertCashFundExpenseSchema", () => {
+  it("accepts a valid meeting expense", () => {
+    const result = insertCashFundExpenseSchema.safeParse({ description: "Tea and biscuits", amount: 120, date: "2026-09-01" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a missing description", () => {
+    expect(insertCashFundExpenseSchema.safeParse({ amount: 120, date: "2026-09-01" }).success).toBe(false);
+  });
+
+  it("rejects a zero or negative amount", () => {
+    expect(insertCashFundExpenseSchema.safeParse({ description: "Auto fare", amount: 0, date: "2026-09-01" }).success).toBe(false);
   });
 });

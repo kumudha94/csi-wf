@@ -170,9 +170,58 @@ export const insertContributionSchema = z.object({
 });
 export type ContributionInput = z.infer<typeof insertContributionSchema>;
 
+// ---------- cash_fund_income ----------
+export const CASH_INCOME_TYPES = ["offering", "donation"] as const;
+export type CashIncomeType = (typeof CASH_INCOME_TYPES)[number];
+
+export const cashFundIncome = pgTable("cash_fund_income", {
+  id: serial("id").primaryKey(),
+  type: varchar("type", { length: 10 }).notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  donorName: varchar("donor_name", { length: 150 }),
+  note: text("note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type CashFundIncome = typeof cashFundIncome.$inferSelect;
+
+export const insertCashFundIncomeSchema = z.object({
+  type: z.enum(CASH_INCOME_TYPES),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  date: dateStringSchema,
+  // Free text, not a members FK: donors are frequently non-members. Only
+  // meaningful when type is "donation", but not validated against type —
+  // an empty/omitted name is always valid.
+  donorName: z.string().max(150).nullable().optional(),
+  note: z.string().nullable().optional(),
+});
+export type CashFundIncomeInput = z.infer<typeof insertCashFundIncomeSchema>;
+
+// ---------- cash_fund_expenses ----------
+export const cashFundExpenses = pgTable("cash_fund_expenses", {
+  id: serial("id").primaryKey(),
+  description: varchar("description", { length: 255 }).notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type CashFundExpense = typeof cashFundExpenses.$inferSelect;
+
+// No paid/pending status, unlike `expenses` — cash spending happens same-day.
+export const insertCashFundExpenseSchema = z.object({
+  description: z.string().min(1, "Description is required").max(255),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  date: dateStringSchema,
+});
+export type CashFundExpenseInput = z.infer<typeof insertCashFundExpenseSchema>;
+
 // ---------- settings ----------
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
-  openingBalance: numeric("opening_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  // Column name stays "opening_balance" (pre-existing) — only the TS
+  // property is renamed, so this is a pure additive migration with no
+  // rename for drizzle-kit push to negotiate.
+  bankOpeningBalance: numeric("opening_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  cashOpeningBalance: numeric("cash_opening_balance", { precision: 10, scale: 2 }).notNull().default("0"),
 });
 export type Settings = typeof settings.$inferSelect;
