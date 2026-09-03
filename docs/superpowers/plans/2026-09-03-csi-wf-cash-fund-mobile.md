@@ -1165,3 +1165,168 @@ With backend and mobile both running:
 git add mobile/src/screens/ReportsScreen.tsx
 git commit -m "feat: show cash fund breakdown in reports"
 ```
+
+---
+
+### Task 8: `OnboardingScreen` — send both opening balances
+
+**Files:**
+- Modify: `mobile/src/screens/auth/OnboardingScreen.tsx`
+
+**Interfaces:**
+- Consumes: `PUT /api/settings` new shape (backend plan Task 4, merged) — `{ bankOpeningBalance?, cashOpeningBalance? }`, no longer `{ openingBalance }`.
+
+**Why this task exists:** caught by the backend plan's final whole-branch review, not by either plan's own task list. `OnboardingScreen.tsx` sends `PUT /api/settings` with the old `{ openingBalance: balance }` body — now that the backend's Task 4 has merged, that request 400s (the new schema requires `bankOpeningBalance`/`cashOpeningBalance` and rejects a body with neither). Worse than a bad screen: `/api/auth/setup` has already created the account and stored the token before this call runs, so the failure strands the user on onboarding with no way back — a retry re-hits `/api/auth/setup` for an account that already exists. This task was entirely missing from both plans' file lists; run it before Task 6, since both touch the same API contract.
+
+- [ ] **Step 1: Collect both opening balances and send the new shape**
+
+Replace the state and submit handler in `mobile/src/screens/auth/OnboardingScreen.tsx`:
+
+```tsx
+import { useState, useMemo } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { apiRequest } from "../../lib/api";
+import { setToken } from "../../lib/authStorage";
+import { useAuth } from "../../contexts/AuthContext";
+import type { ThemeColors } from "../../theme";
+import { useTheme } from "../../contexts/ThemeContext";
+
+// First-ever launch: set both funds' starting balances, then set the PIN
+// that will protect the app from then on. All three are required before
+// the account can be created.
+export default function OnboardingScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { login, markSetUp } = useAuth();
+  const [bankOpeningBalance, setBankOpeningBalance] = useState("");
+  const [cashOpeningBalance, setCashOpeningBalance] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    const bankBalance = parseFloat(bankOpeningBalance || "0");
+    const cashBalance = parseFloat(cashOpeningBalance || "0");
+    if (Number.isNaN(bankBalance) || bankBalance < 0 || Number.isNaN(cashBalance) || cashBalance < 0) {
+      Alert.alert("Invalid amount", "Enter valid opening balances (0 or more).");
+      return;
+    }
+    if (pin.length < 4) {
+      Alert.alert("PIN too short", "Choose a PIN with at least 4 digits.");
+      return;
+    }
+    if (pin !== confirmPin) {
+      Alert.alert("PINs don't match", "Re-enter the same PIN in both fields.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { token } = await apiRequest<{ token: string }>("/api/auth/setup", {
+        method: "POST",
+        body: JSON.stringify({ pin }),
+      });
+      await setToken(token);
+      await apiRequest("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify({ bankOpeningBalance: bankBalance, cashOpeningBalance: cashBalance }),
+      });
+      await login(token);
+      markSetUp();
+    } catch (error: any) {
+      Alert.alert("Setup failed", error.message || "Something went wrong");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
+      <Text style={styles.title}>Welcome</Text>
+      <Text style={styles.subtitle}>Let's set up the fellowship's opening balances and your PIN.</Text>
+
+      <Text style={styles.label}>Bank Fund opening balance (₹)</Text>
+      <TextInput
+        style={styles.input}
+        value={bankOpeningBalance}
+        onChangeText={setBankOpeningBalance}
+        placeholder="0.00"
+        keyboardType="decimal-pad"
+      />
+
+      <Text style={styles.label}>Cash Fund opening balance (₹)</Text>
+      <TextInput
+        style={styles.input}
+        value={cashOpeningBalance}
+        onChangeText={setCashOpeningBalance}
+        placeholder="0.00"
+        keyboardType="decimal-pad"
+      />
+
+      <Text style={styles.label}>Choose a PIN (4+ digits)</Text>
+      <TextInput
+        style={styles.input}
+        value={pin}
+        onChangeText={setPin}
+        placeholder="****"
+        secureTextEntry
+        keyboardType="number-pad"
+      />
+
+      <Text style={styles.label}>Confirm PIN</Text>
+      <TextInput
+        style={styles.input}
+        value={confirmPin}
+        onChangeText={setConfirmPin}
+        placeholder="****"
+        secureTextEntry
+        keyboardType="number-pad"
+      />
+
+      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={isSubmitting}>
+        <Text style={styles.buttonText}>{isSubmitting ? "Setting up..." : "Get Started"}</Text>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
+  );
+}
+
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: "center" },
+  title: { fontSize: 26, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 24 },
+  label: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginBottom: 6, marginTop: 12 },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
+  },
+  button: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 28,
+  },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: "600" },
+});
+```
+
+- [ ] **Step 2: Typecheck**
+
+Run: `cd mobile && npx tsc --noEmit`
+Expected: no errors.
+
+- [ ] **Step 3: Manual verification**
+
+Run onboarding fresh (clear the app's stored token/PIN, or use a fresh install/simulator reset): enter distinct bank and cash opening balances, complete PIN setup, confirm it reaches the main tab navigator (no error, no stranding on the onboarding screen), then check Settings shows both values saved correctly and Balance shows both funds starting from those figures.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add mobile/src/screens/auth/OnboardingScreen.tsx
+git commit -m "fix: send bank and cash opening balances during onboarding"
+```
