@@ -9,23 +9,62 @@ import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 import ContributionForm from "../components/ContributionForm";
 import ExpenseForm from "../components/ExpenseForm";
+import CashFundPanel from "../components/CashFundPanel";
 
-type Tab = "contributions" | "expenses";
+type Fund = "bank" | "cash";
+type BankTab = "contributions" | "expenses";
 
 export default function BalanceScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>("expenses");
-  const [contributionFormVisible, setContributionFormVisible] = useState(false);
-  const [expenseFormVisible, setExpenseFormVisible] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [editingContribution, setEditingContribution] = useState<Contribution | null>(null);
+  const [fund, setFund] = useState<Fund>("bank");
 
   const { data: balance, isError: balanceIsError } = useQuery({
     queryKey: ["balance"],
     queryFn: () => apiRequest<BalanceResponse>("/api/balance"),
   });
+
+  const displayedBalance = fund === "bank" ? balance?.bankFund?.balance : balance?.cashFund?.balance;
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.balanceCard}>
+        <Text style={styles.balanceLabel}>{fund === "bank" ? "Bank Fund Balance" : "Cash Fund Balance"}</Text>
+        {balanceIsError ? (
+          <Text style={styles.balanceValue}>Could not load balance.</Text>
+        ) : (
+          <>
+            <Text style={styles.balanceValue}>{formatCurrency(displayedBalance ?? 0)}</Text>
+            {fund === "bank" && (
+              <Text style={styles.balancePending}>Pending expenses: {formatCurrency(balance?.bankFund?.totalPendingExpenses ?? 0)}</Text>
+            )}
+          </>
+        )}
+      </View>
+
+      <View style={styles.fundRow}>
+        <TouchableOpacity style={[styles.fundButton, fund === "bank" && styles.fundButtonActive]} onPress={() => setFund("bank")}>
+          <Text style={[styles.fundButtonText, fund === "bank" && styles.fundButtonTextActive]}>Bank Fund</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.fundButton, fund === "cash" && styles.fundButtonActive]} onPress={() => setFund("cash")}>
+          <Text style={[styles.fundButtonText, fund === "cash" && styles.fundButtonTextActive]}>Cash Fund</Text>
+        </TouchableOpacity>
+      </View>
+
+      {fund === "bank" ? <BankFundView /> : <CashFundPanel />}
+    </View>
+  );
+}
+
+function BankFundView() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const queryClient = useQueryClient();
+  const [tab, setTab] = useState<BankTab>("expenses");
+  const [contributionFormVisible, setContributionFormVisible] = useState(false);
+  const [expenseFormVisible, setExpenseFormVisible] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingContribution, setEditingContribution] = useState<Contribution | null>(null);
 
   const { data: generalExpenses = [], isError: generalExpensesIsError } = useQuery({
     queryKey: ["expenses", "general"],
@@ -52,19 +91,7 @@ export default function BalanceScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Current Balance</Text>
-        {balanceIsError ? (
-          <Text style={styles.balanceValue}>Could not load balance.</Text>
-        ) : (
-          <>
-            <Text style={styles.balanceValue}>{formatCurrency(balance?.balance ?? 0)}</Text>
-            <Text style={styles.balancePending}>Pending expenses: {formatCurrency(balance?.totalPendingExpenses ?? 0)}</Text>
-          </>
-        )}
-      </View>
-
+    <View style={{ flex: 1 }}>
       <View style={styles.tabRow}>
         <TouchableOpacity style={[styles.tabButton, tab === "expenses" && styles.tabButtonActive]} onPress={() => setTab("expenses")}>
           <Text style={[styles.tabButtonText, tab === "expenses" && styles.tabButtonTextActive]}>General Expenses</Text>
@@ -197,21 +224,17 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   balanceLabel: { color: colors.primarySoft, fontSize: 13 },
   balanceValue: { color: colors.white, fontSize: 32, fontWeight: "800", marginTop: 4 },
   balancePending: { color: colors.primarySoft, fontSize: 12, marginTop: 8 },
+  fundRow: { flexDirection: "row", marginHorizontal: 16, marginTop: 12, gap: 8 },
+  fundButton: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  fundButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  fundButtonText: { color: colors.textSecondary, fontWeight: "700", fontSize: 13 },
+  fundButtonTextActive: { color: colors.white },
   tabRow: { flexDirection: "row", margin: 16, gap: 8 },
   tabButton: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tabButtonActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   tabButtonText: { color: colors.textSecondary, fontWeight: "600", fontSize: 13 },
   tabButtonTextActive: { color: colors.primary },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  card: { backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, flexDirection: "row", alignItems: "center" },
   cardContent: { flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   deleteButton: { paddingLeft: 12, marginLeft: 8 },
   cardTitle: { fontSize: 15, fontWeight: "600", color: colors.textPrimary },

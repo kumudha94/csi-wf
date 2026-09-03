@@ -37,23 +37,30 @@ function AppearanceSection() {
   );
 }
 
+type SettingsResponse = { bankOpeningBalance: number; cashOpeningBalance: number };
+
 function OpeningBalanceSection() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const { data: settings, isError: settingsError } = useQuery({
     queryKey: ["settings"],
-    queryFn: () => apiRequest<{ openingBalance: number }>("/api/settings"),
+    queryFn: () => apiRequest<SettingsResponse>("/api/settings"),
   });
-  const [value, setValue] = useState<string | null>(null);
+  const [bankValue, setBankValue] = useState<string | null>(null);
+  const [cashValue, setCashValue] = useState<string | null>(null);
 
-  const displayValue = value ?? (settings ? String(settings.openingBalance) : "");
+  const displayedBank = bankValue ?? (settings ? String(settings.bankOpeningBalance) : "");
+  const displayedCash = cashValue ?? (settings ? String(settings.cashOpeningBalance) : "");
 
   const saveMutation = useMutation({
-    mutationFn: (openingBalance: number) => apiRequest("/api/settings", { method: "PUT", body: JSON.stringify({ openingBalance }) }),
-    onSuccess: () => {
+    mutationFn: (payload: Partial<SettingsResponse>) =>
+      apiRequest("/api/settings", { method: "PUT", body: JSON.stringify(payload) }),
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      if (variables.bankOpeningBalance !== undefined) setBankValue(null);
+      if (variables.cashOpeningBalance !== undefined) setCashValue(null);
       Alert.alert("Saved", "Opening balance updated.");
     },
     onError: (error: any) => Alert.alert("Could not save", error.message),
@@ -61,22 +68,41 @@ function OpeningBalanceSection() {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Opening Balance</Text>
+      <Text style={styles.sectionTitle}>Opening Balances</Text>
       {settingsError && <Text style={{ color: colors.danger, fontSize: 12, marginBottom: 8 }}>Could not load settings.</Text>}
-      <TextInput style={styles.input} value={displayValue} onChangeText={setValue} keyboardType="decimal-pad" />
+
+      <Text style={styles.label}>Bank Fund</Text>
+      <TextInput style={styles.input} value={displayedBank} onChangeText={setBankValue} keyboardType="decimal-pad" />
       <TouchableOpacity
         style={styles.button}
         onPress={() => {
-          const parsed = parseFloat(displayValue);
+          const parsed = parseFloat(displayedBank);
           if (Number.isNaN(parsed) || parsed < 0) {
             Alert.alert("Invalid amount", "Enter an amount of 0 or more.");
             return;
           }
-          saveMutation.mutate(parsed);
+          saveMutation.mutate({ bankOpeningBalance: parsed });
         }}
         disabled={saveMutation.isPending}
       >
-        <Text style={styles.buttonText}>{saveMutation.isPending ? "Saving..." : "Save"}</Text>
+        <Text style={styles.buttonText}>{saveMutation.isPending ? "Saving..." : "Save Bank Fund"}</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.label}>Cash Fund</Text>
+      <TextInput style={styles.input} value={displayedCash} onChangeText={setCashValue} keyboardType="decimal-pad" />
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => {
+          const parsed = parseFloat(displayedCash);
+          if (Number.isNaN(parsed) || parsed < 0) {
+            Alert.alert("Invalid amount", "Enter an amount of 0 or more.");
+            return;
+          }
+          saveMutation.mutate({ cashOpeningBalance: parsed });
+        }}
+        disabled={saveMutation.isPending}
+      >
+        <Text style={styles.buttonText}>{saveMutation.isPending ? "Saving..." : "Save Cash Fund"}</Text>
       </TouchableOpacity>
     </View>
   );
