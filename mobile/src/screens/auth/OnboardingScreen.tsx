@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, Alert } from "react-native";
 import { apiRequest } from "../../lib/api";
 import { setToken } from "../../lib/authStorage";
 import { useAuth } from "../../contexts/AuthContext";
@@ -57,56 +57,61 @@ export default function OnboardingScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
-      <Text style={styles.title}>Welcome</Text>
-      <Text style={styles.subtitle}>Let's set up the fellowship's opening balances and your PIN.</Text>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.title}>Welcome</Text>
+        <Text style={styles.subtitle}>Let's set up the fellowship's opening balances and your PIN.</Text>
 
-      <Text style={styles.label}>Bank Fund opening balance (₹)</Text>
-      <TextInput
-        style={styles.input}
-        value={bankOpeningBalance}
-        onChangeText={setBankOpeningBalance}
-        placeholder="0.00"
-        keyboardType="decimal-pad"
-      />
+        <Text style={styles.label}>Bank Fund opening balance (₹)</Text>
+        <TextInput
+          style={styles.input}
+          value={bankOpeningBalance}
+          onChangeText={setBankOpeningBalance}
+          placeholder="0.00"
+          keyboardType="decimal-pad"
+        />
 
-      <Text style={styles.label}>Cash Fund opening balance (₹)</Text>
-      <TextInput
-        style={styles.input}
-        value={cashOpeningBalance}
-        onChangeText={setCashOpeningBalance}
-        placeholder="0.00"
-        keyboardType="decimal-pad"
-      />
+        <Text style={styles.label}>Cash Fund opening balance (₹)</Text>
+        <TextInput
+          style={styles.input}
+          value={cashOpeningBalance}
+          onChangeText={setCashOpeningBalance}
+          placeholder="0.00"
+          keyboardType="decimal-pad"
+        />
 
-      <Text style={styles.label}>Choose a PIN (4+ digits)</Text>
-      <TextInput
-        style={styles.input}
-        value={pin}
-        onChangeText={setPin}
-        placeholder="****"
-        secureTextEntry
-        keyboardType="number-pad"
-      />
+        <Text style={styles.label}>Choose a PIN (4+ digits)</Text>
+        <TextInput
+          style={styles.input}
+          value={pin}
+          onChangeText={setPin}
+          placeholder="****"
+          secureTextEntry
+          keyboardType="number-pad"
+        />
 
-      <Text style={styles.label}>Confirm PIN</Text>
-      <TextInput
-        style={styles.input}
-        value={confirmPin}
-        onChangeText={setConfirmPin}
-        placeholder="****"
-        secureTextEntry
-        keyboardType="number-pad"
-      />
+        <Text style={styles.label}>Confirm PIN</Text>
+        <TextInput
+          style={styles.input}
+          value={confirmPin}
+          onChangeText={setConfirmPin}
+          placeholder="****"
+          secureTextEntry
+          keyboardType="number-pad"
+        />
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={isSubmitting}>
-        <Text style={styles.buttonText}>{isSubmitting ? "Setting up..." : "Get Started"}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={isSubmitting}>
+          <Text style={styles.buttonText}>{isSubmitting ? "Setting up..." : "Get Started"}</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: "center" },
+  container: { flex: 1, backgroundColor: colors.background },
   title: { fontSize: 26, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 24 },
   label: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginBottom: 6, marginTop: 12 },

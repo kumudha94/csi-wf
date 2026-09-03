@@ -56,9 +56,11 @@ function OpeningBalanceSection() {
   const saveMutation = useMutation({
     mutationFn: (payload: Partial<SettingsResponse>) =>
       apiRequest("/api/settings", { method: "PUT", body: JSON.stringify(payload) }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      if (variables.bankOpeningBalance !== undefined) setBankValue(null);
+      if (variables.cashOpeningBalance !== undefined) setCashValue(null);
       Alert.alert("Saved", "Opening balance updated.");
     },
     onError: (error: any) => Alert.alert("Could not save", error.message),

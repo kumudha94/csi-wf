@@ -104,6 +104,7 @@ export default function ReportsScreen() {
 
       {report ? (
         <View style={styles.summaryCard}>
+          <Text style={styles.sectionTitle}>Bank Fund</Text>
           <Row label="Opening balance" value={formatCurrency(report.openingBalance)} />
           <Row label="Contributions received" value={formatCurrency(report.totalContributions)} />
           <Row label="Expenses paid" value={formatCurrency(report.totalPaidExpenses)} />
@@ -112,7 +113,7 @@ export default function ReportsScreen() {
         </View>
       ) : null}
 
-      {report ? (
+      {report?.cashFund ? (
         <View style={styles.summaryCard}>
           <Text style={styles.sectionTitle}>Cash Fund</Text>
           <Row label="Opening balance" value={formatCurrency(report.cashFund.openingBalance)} />
@@ -160,36 +161,40 @@ export default function ReportsScreen() {
             ))
           )}
 
-          <Text style={styles.sectionTitle}>Cash Fund Income ({report.cashFund.income.length})</Text>
-          {report.cashFund.income.length === 0 ? (
-            <Text style={styles.emptyText}>None in this period.</Text>
-          ) : (
-            report.cashFund.income.map((i, idx) => (
-              <View key={idx} style={styles.listRow}>
-                <Text style={styles.listRowTitle}>
-                  {i.type === "donation" ? i.donorName || "Donation" : "Offering"}
-                </Text>
-                <Text style={styles.listRowMeta}>
-                  {i.date} · {formatCurrency(i.amount)}
-                  {i.note ? ` · ${i.note}` : ""}
-                </Text>
-              </View>
-            ))
-          )}
+          {report.cashFund ? (
+            <>
+              <Text style={styles.sectionTitle}>Cash Fund Income ({report.cashFund.income.length})</Text>
+              {report.cashFund.income.length === 0 ? (
+                <Text style={styles.emptyText}>None in this period.</Text>
+              ) : (
+                report.cashFund.income.map((i, idx) => (
+                  <View key={idx} style={styles.listRow}>
+                    <Text style={styles.listRowTitle}>
+                      {i.type === "donation" ? i.donorName || "Donation" : "Offering"}
+                    </Text>
+                    <Text style={styles.listRowMeta}>
+                      {i.date} · {formatCurrency(i.amount)}
+                      {i.note ? ` · ${i.note}` : ""}
+                    </Text>
+                  </View>
+                ))
+              )}
 
-          <Text style={styles.sectionTitle}>Cash Fund Expenses ({report.cashFund.expenses.length})</Text>
-          {report.cashFund.expenses.length === 0 ? (
-            <Text style={styles.emptyText}>None in this period.</Text>
-          ) : (
-            report.cashFund.expenses.map((e, idx) => (
-              <View key={idx} style={styles.listRow}>
-                <Text style={styles.listRowTitle}>{e.description}</Text>
-                <Text style={styles.listRowMeta}>
-                  {e.date} · {formatCurrency(e.amount)}
-                </Text>
-              </View>
-            ))
-          )}
+              <Text style={styles.sectionTitle}>Cash Fund Expenses ({report.cashFund.expenses.length})</Text>
+              {report.cashFund.expenses.length === 0 ? (
+                <Text style={styles.emptyText}>None in this period.</Text>
+              ) : (
+                report.cashFund.expenses.map((e, idx) => (
+                  <View key={idx} style={styles.listRow}>
+                    <Text style={styles.listRowTitle}>{e.description}</Text>
+                    <Text style={styles.listRowMeta}>
+                      {e.date} · {formatCurrency(e.amount)}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </>
+          ) : null}
         </>
       ) : null}
     </ScrollView>

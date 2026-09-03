@@ -24,7 +24,7 @@ export default function BalanceScreen() {
     queryFn: () => apiRequest<BalanceResponse>("/api/balance"),
   });
 
-  const displayedBalance = fund === "bank" ? balance?.bankFund.balance : balance?.cashFund.balance;
+  const displayedBalance = fund === "bank" ? balance?.bankFund?.balance : balance?.cashFund?.balance;
 
   return (
     <View style={styles.container}>
@@ -36,7 +36,7 @@ export default function BalanceScreen() {
           <>
             <Text style={styles.balanceValue}>{formatCurrency(displayedBalance ?? 0)}</Text>
             {fund === "bank" && (
-              <Text style={styles.balancePending}>Pending expenses: {formatCurrency(balance?.bankFund.totalPendingExpenses ?? 0)}</Text>
+              <Text style={styles.balancePending}>Pending expenses: {formatCurrency(balance?.bankFund?.totalPendingExpenses ?? 0)}</Text>
             )}
           </>
         )}
