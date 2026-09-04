@@ -55,6 +55,8 @@ export type EventDetail = {
 
 export type ExpenseStatus = "paid" | "pending";
 
+export type ExpenseFundSource = "bank" | "cash";
+
 export type Expense = {
   id: number;
   eventId: number | null;
@@ -62,6 +64,7 @@ export type Expense = {
   amount: number;
   receiptPhotoUrl: string | null;
   status: ExpenseStatus;
+  fundSource: ExpenseFundSource;
   date: string;
   createdAt: string;
 };

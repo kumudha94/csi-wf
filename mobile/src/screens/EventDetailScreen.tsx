@@ -121,7 +121,9 @@ export default function EventDetailScreen({ route, navigation }: Props) {
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.expenseDescription}>{item.description}</Text>
-                <Text style={styles.expenseMeta}>{item.date}</Text>
+                <Text style={styles.expenseMeta}>
+                  {item.date} · {item.fundSource === "bank" ? "BankFund" : "CashFund"}
+                </Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>

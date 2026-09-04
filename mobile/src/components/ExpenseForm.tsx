@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest, uploadReceipt } from "../lib/api";
-import type { Expense, ExpenseStatus } from "../lib/types";
+import type { Expense, ExpenseStatus, ExpenseFundSource } from "../lib/types";
 import { todayString, dateToString } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
@@ -28,6 +28,7 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayString());
   const [status, setStatus] = useState<ExpenseStatus>("pending");
+  const [fundSource, setFundSource] = useState<ExpenseFundSource>("bank");
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -39,6 +40,7 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
       setAmount(expense ? String(expense.amount) : "");
       setDate(expense?.date || todayString());
       setStatus(expense?.status || "pending");
+      setFundSource(expense?.fundSource || "bank");
       setReceiptUri(null);
       setReceiptUrl(expense?.receiptPhotoUrl || null);
     }
@@ -80,6 +82,7 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
         amount: parseFloat(amount),
         receiptPhotoUrl: receiptUrl,
         status,
+        fundSource,
         date,
       };
       if (isEditing) {
@@ -121,6 +124,21 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
 
         <Text style={styles.label}>Amount (₹) *</Text>
         <TextInput style={styles.input} value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="decimal-pad" />
+
+        <Text style={styles.label}>Using amount from *</Text>
+        <View style={styles.statusRow}>
+          {(["bank", "cash"] as ExpenseFundSource[]).map((source) => (
+            <TouchableOpacity
+              key={source}
+              style={[styles.statusOption, fundSource === source && styles.statusOptionActive]}
+              onPress={() => setFundSource(source)}
+            >
+              <Text style={[styles.statusOptionText, fundSource === source && styles.statusOptionTextActive]}>
+                {source === "bank" ? "BankFund" : "CashFund"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <Text style={styles.label}>Date</Text>
         <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
