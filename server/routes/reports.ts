@@ -5,7 +5,7 @@ import * as reportsStorage from "../storage/reports";
 import { getSettings } from "../storage/settings";
 import { fromMoney } from "../lib/money";
 import { computeBalance } from "../lib/balance";
-import { generateReportPdf } from "../lib/pdf";
+import { generateReportPdf, generateCashFundReportPdf } from "../lib/pdf";
 import { db } from "../db";
 import { members } from "@shared/schema";
 
@@ -122,6 +122,18 @@ reportsRouter.get(
     const pdfBuffer = await generateReportPdf(report);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="csi-wf-report-${from}-to-${to}.pdf"`);
+    res.send(pdfBuffer);
+  })
+);
+
+reportsRouter.get(
+  "/cash-fund/pdf",
+  wrap(async (req, res) => {
+    const { from, to } = rangeSchema.parse(req.query);
+    const report = await buildReport(from, to);
+    const pdfBuffer = await generateCashFundReportPdf({ ...report.cashFund, from, to });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="csi-wf-cash-fund-report-${from}-to-${to}.pdf"`);
     res.send(pdfBuffer);
   })
 );

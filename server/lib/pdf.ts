@@ -229,6 +229,45 @@ export function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
   });
 }
 
+export type CashFundReportPdfData = ReportPdfData["cashFund"] & { from: string; to: string };
+
+// Standalone Cash-Fund-only report, for the Report icon on the CashFlow
+// screen's gradient card (and, later, the equivalent Bank-Fund-only report
+// for BankFlow's icon) -- reuses the same ledger builder/table renderer as
+// the combined report's Cash Fund section, just as its own document rather
+// than a section within generateReportPdf's output.
+export function generateCashFundReportPdf(data: CashFundReportPdfData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 40 });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    doc.fontSize(18).text("CSI Women's Fellowship - Cash Fund Report", { align: "center" });
+    doc.moveDown(0.5);
+    doc.fontSize(11).text(`Period: ${data.from} to ${data.to}`, { align: "center" });
+    doc.moveDown(1.5);
+
+    doc.fontSize(13).text("Summary");
+    doc.fontSize(11);
+    doc.text(`Opening balance: Rs. ${data.openingBalance.toFixed(2)}`);
+    doc.text(`Offering received: Rs. ${data.totalOffering.toFixed(2)}`);
+    doc.text(`Donations received: Rs. ${data.totalDonation.toFixed(2)}`);
+    doc.text(`Expenses: Rs. ${data.totalExpenses.toFixed(2)}`);
+    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.closingBalance.toFixed(2)}`);
+    doc.font("Helvetica");
+    doc.moveDown(1.5);
+
+    doc.fontSize(13).text("Offering, Donations & Expenses");
+    doc.moveDown(0.3);
+    doc.fontSize(9);
+    drawLedgerTable(doc, buildCashLedgerRows(data));
+
+    doc.end();
+  });
+}
+
 export type EventPdfData = {
   name: string;
   details: string | null;
