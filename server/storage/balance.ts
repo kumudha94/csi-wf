@@ -8,7 +8,8 @@ export type BalanceInputs = {
   totalDeposits: number;
   totalWithdrawals: number;
   totalCashExpenseFromHand: number;
-  totalEventExpensesPaid: number;
+  totalEventExpensesPaidFromBank: number;
+  totalEventExpensesPaidFromCash: number;
   cashOpeningBalance: number;
   totalCashIncome: number;
   totalOffering: number;
@@ -39,16 +40,23 @@ export async function getBalanceInputs(): Promise<BalanceInputs> {
     .where(eq(bankTransactions.type, "cash_expense"));
   const totalCashExpenseFromHand = fromMoney(cashExpenseFromHandRow.total);
 
-  // Event spending is always funded from withdrawn cash-in-hand, never paid
-  // directly from the bank -- so paid event expenses reduce Balance in
-  // Hand, not Bank Balance. `event_id IS NOT NULL` is defensive: no new
-  // eventId-null ("general") expense rows get created after this ships,
-  // but this guards against any stray ones.
-  const [eventExpensesPaidRow] = await db
+  // Event spending is never paid directly from the bank -- it comes out of
+  // whichever pot the treasurer picks when logging the expense: bank
+  // hand-cash (reduces Balance in Hand) or the Cash Fund (reduces Cash Fund
+  // balance). `event_id IS NOT NULL` is defensive: no new eventId-null
+  // ("general") expense rows get created after the bank_transactions
+  // migration shipped, but this guards against any stray ones.
+  const [eventExpensesPaidFromBankRow] = await db
     .select({ total: sql<string>`coalesce(sum(${expenses.amount}), 0)` })
     .from(expenses)
-    .where(and(isNotNull(expenses.eventId), eq(expenses.status, "paid")));
-  const totalEventExpensesPaid = fromMoney(eventExpensesPaidRow.total);
+    .where(and(isNotNull(expenses.eventId), eq(expenses.status, "paid"), eq(expenses.fundSource, "bank")));
+  const totalEventExpensesPaidFromBank = fromMoney(eventExpensesPaidFromBankRow.total);
+
+  const [eventExpensesPaidFromCashRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${expenses.amount}), 0)` })
+    .from(expenses)
+    .where(and(isNotNull(expenses.eventId), eq(expenses.status, "paid"), eq(expenses.fundSource, "cash")));
+  const totalEventExpensesPaidFromCash = fromMoney(eventExpensesPaidFromCashRow.total);
 
   const [cashIncomeRow] = await db
     .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
@@ -77,7 +85,8 @@ export async function getBalanceInputs(): Promise<BalanceInputs> {
     totalDeposits,
     totalWithdrawals,
     totalCashExpenseFromHand,
-    totalEventExpensesPaid,
+    totalEventExpensesPaidFromBank,
+    totalEventExpensesPaidFromCash,
     cashOpeningBalance,
     totalCashIncome,
     totalOffering,

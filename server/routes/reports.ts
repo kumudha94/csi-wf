@@ -48,14 +48,16 @@ async function buildReport(from: string, to: string) {
   const cashOpeningBalance = computeBalance({
     openingBalance: cashInceptionBalance,
     totalContributions: fromMoney(cashPrior.totalCashIncome),
-    totalPaidExpenses: fromMoney(cashPrior.totalCashExpenses),
+    // Cash-sourced event expenses reduce Cash Fund balance exactly like
+    // meeting expenses -- roll them into the same prior-activity figure.
+    totalPaidExpenses: fromMoney(cashPrior.totalCashExpenses) + fromMoney(cashPrior.totalCashEventExpenses),
   });
 
   const cashTotals = await reportsStorage.getCashReportTotals({ from, to });
   const totalCashIncome = fromMoney(cashTotals.totalCashIncome);
   const totalOffering = fromMoney(cashTotals.totalOffering);
   const totalDonation = fromMoney(cashTotals.totalDonation);
-  const totalCashExpenses = fromMoney(cashTotals.totalCashExpenses);
+  const totalCashExpenses = fromMoney(cashTotals.totalCashExpenses) + fromMoney(cashTotals.totalCashEventExpenses);
   const cashClosingBalance = computeBalance({
     openingBalance: cashOpeningBalance,
     totalContributions: totalCashIncome,

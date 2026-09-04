@@ -76,6 +76,19 @@ export async function getContributionsInRange({ from, to }: ReportRange) {
     .orderBy(contributions.date);
 }
 
+// Event expenses logged with fundSource "cash" come out of the Cash Fund,
+// same as a meeting expense -- this totals just those, in range, paid only
+// (mirrors how pending expenses never move a balance anywhere in this app).
+async function getCashSourcedEventExpensesTotal(from: string, to: string) {
+  const [row] = await db
+    .select({ total: sql<string>`coalesce(sum(${expenses.amount}), 0)` })
+    .from(expenses)
+    .where(
+      and(eq(expenses.fundSource, "cash"), eq(expenses.status, "paid"), gte(expenses.date, from), lte(expenses.date, to))
+    );
+  return row.total;
+}
+
 export async function getCashReportTotals({ from, to }: ReportRange) {
   const [incomeRow] = await db
     .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
@@ -97,11 +110,14 @@ export async function getCashReportTotals({ from, to }: ReportRange) {
     .from(cashFundExpenses)
     .where(and(gte(cashFundExpenses.date, from), lte(cashFundExpenses.date, to)));
 
+  const totalCashEventExpenses = await getCashSourcedEventExpensesTotal(from, to);
+
   return {
     totalCashIncome: incomeRow.total,
     totalOffering: offeringRow.total,
     totalDonation: donationRow.total,
     totalCashExpenses: expenseRow.total,
+    totalCashEventExpenses,
   };
 }
 
@@ -117,7 +133,46 @@ export async function getCashPriorActivity(before: string) {
     .from(cashFundExpenses)
     .where(lt(cashFundExpenses.date, before));
 
-  return { totalCashIncome: incomeRow.total, totalCashExpenses: expenseRow.total };
+  const [eventExpenseRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${expenses.amount}), 0)` })
+    .from(expenses)
+    .where(and(eq(expenses.fundSource, "cash"), eq(expenses.status, "paid"), lt(expenses.date, before)));
+
+  return {
+    totalCashIncome: incomeRow.total,
+    totalCashExpenses: expenseRow.total,
+    totalCashEventExpenses: eventExpenseRow.total,
+  };
+}
+
+// Cash-sourced event expenses, shaped to match cashFundExpenses rows
+// exactly (id/description/amount/date/createdAt) so they merge directly
+// into the same ledger list -- description gets an "[Event Name]" prefix,
+// same convention as the Bank Fund ledger's event expense rows.
+async function getCashSourcedEventExpensesInRange({ from, to }: ReportRange) {
+  const rows = await db
+    .select({
+      id: expenses.id,
+      description: expenses.description,
+      amount: expenses.amount,
+      date: expenses.date,
+      createdAt: expenses.createdAt,
+      eventName: events.name,
+    })
+    .from(expenses)
+    .leftJoin(events, eq(expenses.eventId, events.id))
+    .where(
+      and(eq(expenses.fundSource, "cash"), eq(expenses.status, "paid"), gte(expenses.date, from), lte(expenses.date, to))
+    )
+    .orderBy(expenses.date);
+
+  return rows.map((r) => ({
+    id: r.id,
+    description: r.eventName ? `[${r.eventName}] ${r.description}` : r.description,
+    amount: r.amount,
+    date: r.date,
+    createdAt: r.createdAt,
+  }));
 }
 
 export async function getCashFundEntriesInRange({ from, to }: ReportRange) {
@@ -127,11 +182,13 @@ export async function getCashFundEntriesInRange({ from, to }: ReportRange) {
     .where(and(gte(cashFundIncome.date, from), lte(cashFundIncome.date, to)))
     .orderBy(cashFundIncome.date);
 
-  const expenseRows = await db
+  const directExpenseRows = await db
     .select()
     .from(cashFundExpenses)
     .where(and(gte(cashFundExpenses.date, from), lte(cashFundExpenses.date, to)))
     .orderBy(cashFundExpenses.date);
+  const eventExpenseRows = await getCashSourcedEventExpensesInRange({ from, to });
+  const expenseRows = [...directExpenseRows, ...eventExpenseRows].sort((a, b) => a.date.localeCompare(b.date));
 
   return { income, expenses: expenseRows };
 }

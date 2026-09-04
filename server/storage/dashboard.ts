@@ -23,12 +23,12 @@ export async function getDashboardSummary() {
   const balanceInHand = computeBalance({
     openingBalance: 0,
     totalContributions: balanceInputs.totalWithdrawals,
-    totalPaidExpenses: balanceInputs.totalCashExpenseFromHand + balanceInputs.totalEventExpensesPaid,
+    totalPaidExpenses: balanceInputs.totalCashExpenseFromHand + balanceInputs.totalEventExpensesPaidFromBank,
   });
   const cashBalance = computeBalance({
     openingBalance: balanceInputs.cashOpeningBalance,
     totalContributions: balanceInputs.totalCashIncome,
-    totalPaidExpenses: balanceInputs.totalCashExpenses,
+    totalPaidExpenses: balanceInputs.totalCashExpenses + balanceInputs.totalEventExpensesPaidFromCash,
   });
   const depositWindow = getDepositWindow(now);
   const depositCompleted = await hasDepositInRange(depositWindow.from, depositWindow.to);

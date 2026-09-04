@@ -20,13 +20,15 @@ balanceRouter.get(
     const balanceInHand = computeBalance({
       openingBalance: 0,
       totalContributions: inputs.totalWithdrawals,
-      totalPaidExpenses: inputs.totalCashExpenseFromHand + inputs.totalEventExpensesPaid,
+      totalPaidExpenses: inputs.totalCashExpenseFromHand + inputs.totalEventExpensesPaidFromBank,
     });
-    // Cash Fund is unchanged by this plan -- same formula shape as before.
+    // Event expenses can also be paid from the Cash Fund (fundSource
+    // "cash"), so those reduce Cash Fund balance the same way meeting
+    // expenses do.
     const cashBalance = computeBalance({
       openingBalance: inputs.cashOpeningBalance,
       totalContributions: inputs.totalCashIncome,
-      totalPaidExpenses: inputs.totalCashExpenses,
+      totalPaidExpenses: inputs.totalCashExpenses + inputs.totalEventExpensesPaidFromCash,
     });
 
     const now = new Date();

@@ -148,6 +148,14 @@ export type EventInput = z.infer<typeof insertEventSchema>;
 export const EXPENSE_STATUSES = ["paid", "pending"] as const;
 export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
 
+// Which pot a paid event expense actually comes out of: "bank" = the
+// hand-cash withdrawn from the bank for the event (reduces Balance in
+// Hand); "cash" = the Offering/Donation pot (reduces Cash Fund balance).
+// Defaults to "bank" so existing rows keep their current behavior exactly
+// -- this is a pure additive column, no data migration needed.
+export const EXPENSE_FUND_SOURCES = ["bank", "cash"] as const;
+export type ExpenseFundSource = (typeof EXPENSE_FUND_SOURCES)[number];
+
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
   eventId: integer("event_id").references(() => events.id, { onDelete: "set null" }),
@@ -155,6 +163,7 @@ export const expenses = pgTable("expenses", {
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   receiptPhotoUrl: varchar("receipt_photo_url", { length: 500 }),
   status: varchar("status", { length: 10 }).notNull().default("pending"),
+  fundSource: varchar("fund_source", { length: 10 }).notNull().default("bank"),
   date: varchar("date", { length: 10 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -166,6 +175,7 @@ export const insertExpenseSchema = z.object({
   amount: z.coerce.number().positive("Amount must be greater than 0"),
   receiptPhotoUrl: z.string().url().nullable().optional(),
   status: z.enum(EXPENSE_STATUSES).default("pending"),
+  fundSource: z.enum(EXPENSE_FUND_SOURCES).default("bank"),
   date: dateStringSchema,
 });
 export type ExpenseInput = z.infer<typeof insertExpenseSchema>;

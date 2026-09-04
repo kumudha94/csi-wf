@@ -166,6 +166,29 @@ describe("insertExpenseSchema", () => {
     const result = insertExpenseSchema.parse({ description: "Stationery", amount: 10, date: "2026-08-29" });
     expect(result.status).toBe("pending");
   });
+
+  it("defaults fundSource to bank", () => {
+    const result = insertExpenseSchema.parse({ description: "Stationery", amount: 10, date: "2026-08-29" });
+    expect(result.fundSource).toBe("bank");
+  });
+
+  it("accepts an explicit cash fundSource", () => {
+    const result = insertExpenseSchema.safeParse({
+      description: "Decorations",
+      amount: 1500,
+      date: "2026-08-29",
+      fundSource: "cash",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.fundSource).toBe("cash");
+  });
+
+  it("rejects an invalid fundSource", () => {
+    expect(
+      insertExpenseSchema.safeParse({ description: "Stationery", amount: 10, date: "2026-08-29", fundSource: "wallet" })
+        .success
+    ).toBe(false);
+  });
 });
 
 describe("insertContributionSchema", () => {
