@@ -75,7 +75,7 @@ export default function CashFundPanel() {
           <Text style={[styles.tabButtonText, tab === "income" && styles.tabButtonTextActive]}>Offering / Donation</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tabButton, tab === "expenses" && styles.tabButtonActive]} onPress={() => setTab("expenses")}>
-          <Text style={[styles.tabButtonText, tab === "expenses" && styles.tabButtonTextActive]}>Meeting Expenses</Text>
+          <Text style={[styles.tabButtonText, tab === "expenses" && styles.tabButtonTextActive]}>Expenses</Text>
         </TouchableOpacity>
       </View>
 
@@ -130,7 +130,7 @@ export default function CashFundPanel() {
               </TouchableOpacity>
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>{expensesIsError ? "Could not load expenses." : "No meeting expenses yet."}</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{expensesIsError ? "Could not load expenses." : "No expenses yet."}</Text>}
           contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
         />
       )}

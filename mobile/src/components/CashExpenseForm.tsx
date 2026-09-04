@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest } from "../lib/api";
 import type { CashFundExpense } from "../lib/types";
@@ -71,7 +72,7 @@ export default function CashExpenseForm({ visible, onClose, expense }: Props) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
-          <Text style={styles.title}>{isEditing ? "Edit Expense" : "Add Meeting Expense"}</Text>
+          <Text style={styles.title}>{isEditing ? "Edit Expense" : "Add Expense"}</Text>
 
           <Text style={styles.label}>Reason / Description *</Text>
           <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholder="Tea, snacks, auto fare..." />
@@ -80,9 +81,14 @@ export default function CashExpenseForm({ visible, onClose, expense }: Props) {
           <TextInput style={styles.input} value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="decimal-pad" />
 
           <Text style={styles.label}>Date</Text>
-          <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-            <Text style={{ color: colors.textPrimary }}>{date}</Text>
-          </TouchableOpacity>
+          <View style={styles.dateRow}>
+            <TouchableOpacity style={[styles.input, { flex: 1 }]} onPress={() => setShowDatePicker(true)}>
+              <Text style={{ color: colors.textPrimary }}>{date}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
+              <Ionicons name="calendar-outline" size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
           {showDatePicker && (
             <DateTimePicker value={new Date(`${date}T00:00:00`)} mode="date" display="default" onChange={handleDateChange} />
           )}
@@ -106,6 +112,17 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   title: { fontSize: 20, fontWeight: "700", color: colors.textPrimary, marginBottom: 16 },
   label: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginBottom: 6, marginTop: 12 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 15, backgroundColor: colors.surface, color: colors.textPrimary },
+  dateRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  calendarButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
   row: { flexDirection: "row", gap: 12, marginTop: 28 },
   button: { flex: 1, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
   buttonText: { color: colors.white, fontSize: 15, fontWeight: "600" },

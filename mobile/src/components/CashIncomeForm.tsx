@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest } from "../lib/api";
 import type { Member, CashFundIncome, CashIncomeType } from "../lib/types";
@@ -84,6 +85,10 @@ export default function CashIncomeForm({ visible, onClose, income }: Props) {
   });
 
   const handleSubmit = () => {
+    if (type === "offering" && !note.trim()) {
+      Alert.alert("Missing reason", "Enter what this offering was for.");
+      return;
+    }
     const parsedAmount = parseFloat(amount);
     if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
       Alert.alert("Invalid amount", "Enter an amount greater than 0.");
@@ -148,15 +153,25 @@ export default function CashIncomeForm({ visible, onClose, income }: Props) {
           <TextInput style={styles.input} value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="decimal-pad" />
 
           <Text style={styles.label}>Date</Text>
-          <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-            <Text style={{ color: colors.textPrimary }}>{date}</Text>
-          </TouchableOpacity>
+          <View style={styles.dateRow}>
+            <TouchableOpacity style={[styles.input, { flex: 1 }]} onPress={() => setShowDatePicker(true)}>
+              <Text style={{ color: colors.textPrimary }}>{date}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
+              <Ionicons name="calendar-outline" size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
           {showDatePicker && (
             <DateTimePicker value={new Date(`${date}T00:00:00`)} mode="date" display="default" onChange={handleDateChange} />
           )}
 
-          <Text style={styles.label}>Note</Text>
-          <TextInput style={styles.input} value={note} onChangeText={setNote} placeholder="Optional note" />
+          <Text style={styles.label}>{type === "offering" ? "Reason / Description *" : "Note"}</Text>
+          <TextInput
+            style={styles.input}
+            value={note}
+            onChangeText={setNote}
+            placeholder={type === "offering" ? "What was this offering for?" : "Optional note"}
+          />
 
           <View style={styles.row}>
             <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={onClose}>
@@ -184,6 +199,17 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   typeOptionTextActive: { color: colors.primary },
   suggestionsBox: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, marginTop: 4, backgroundColor: colors.surface },
   suggestionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  dateRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  calendarButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
   row: { flexDirection: "row", gap: 12, marginTop: 28 },
   button: { flex: 1, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
   buttonText: { color: colors.white, fontSize: 15, fontWeight: "600" },

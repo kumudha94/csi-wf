@@ -106,6 +106,8 @@ export type BankFundBalance = {
 export type CashFundBalanceSummary = {
   openingBalance: number;
   totalIncome: number;
+  totalOffering: number;
+  totalDonation: number;
   totalExpenses: number;
   balance: number;
 };

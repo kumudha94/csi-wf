@@ -38,6 +38,12 @@ export default function BalanceScreen() {
             {fund === "bank" && (
               <Text style={styles.balancePending}>Pending expenses: {formatCurrency(balance?.bankFund?.totalPendingExpenses ?? 0)}</Text>
             )}
+            {fund === "cash" && (
+              <>
+                <Text style={styles.balancePending}>Offering: {formatCurrency(balance?.cashFund?.totalOffering ?? 0)}</Text>
+                <Text style={styles.balancePending}>Donation: {formatCurrency(balance?.cashFund?.totalDonation ?? 0)}</Text>
+              </>
+            )}
           </>
         )}
       </View>
