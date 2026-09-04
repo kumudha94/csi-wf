@@ -120,10 +120,13 @@ sub-component is replaced by the new design:
   [Month]" / "Pending ₹Y from M members"), then a searchable list of
   members (search by name or santha number, same filter pattern as
   `MembersScreen`). Each row: name, santha number, amount input pre-filled
-  from `member.defaultAmount`, and an Add/Paid button. Tapping Add records
-  a payment for the current month (see gap-fill logic below). Tapping a row
-  that's already paid for the current month opens it for edit (amount and
-  date only — member and month aren't editable).
+  with the **total currently owed** (`member.defaultAmount` × count of
+  missing months — just `defaultAmount` itself when only the current month
+  is owed; a helper line under the row states the gap, e.g. "Santha amount
+  pending for 3 months"), and an Add/Paid button. Tapping Add records a
+  payment for the current month and any gap months (see gap-fill logic
+  below). Tapping a row that's already paid for the current month opens it
+  for edit (amount and date only — member and month aren't editable).
 
 ### `BankTransactionForm.tsx` (new component)
 
