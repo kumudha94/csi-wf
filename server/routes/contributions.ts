@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { insertContributionSchema, type Contribution } from "@shared/schema";
+import { insertContributionSchema, collectContributionSchema, type Contribution } from "@shared/schema";
 import * as contributionsStorage from "../storage/contributions";
 import { wrap } from "../lib/asyncHandler";
 import { fromMoney } from "../lib/money";
@@ -12,6 +12,35 @@ export const contributionsRouter = Router();
 function serializeContribution(contribution: Contribution) {
   return { ...contribution, amount: fromMoney(contribution.amount) };
 }
+
+contributionsRouter.get(
+  "/collection-status",
+  wrap(async (_req, res) => {
+    const status = await contributionsStorage.getCollectionStatus();
+    res.json(status);
+  })
+);
+
+contributionsRouter.post(
+  "/collect",
+  wrap(async (req, res) => {
+    const data = collectContributionSchema.parse(req.body);
+    try {
+      const rows = await contributionsStorage.collectContribution(data.memberId, data.totalAmount, data.date);
+      res.status(201).json(rows.map(serializeContribution));
+    } catch (error: any) {
+      if (error.message === "MEMBER_NOT_FOUND") {
+        res.status(400).json({ error: "That member does not exist" });
+        return;
+      }
+      if (error.message === "NOTHING_OWED") {
+        res.status(400).json({ error: "This member has already paid for the current month" });
+        return;
+      }
+      throw error;
+    }
+  })
+);
 
 contributionsRouter.get(
   "/",
