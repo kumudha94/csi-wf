@@ -63,13 +63,32 @@ to reset/discard as part of this schema change.
 
 ## Balance Formulas
 
+**Critical clarification from the project owner:** events are never paid
+for directly from the bank. Money is withdrawn from the bank as one lump
+sum, held in hand, and *all* event spending (Christmas celebration, annual
+trip, etc.) comes out of that withdrawn cash — never a direct bank
+payment. This means paid event expenses must stop reducing **Bank
+Balance** (which the pre-existing formula in `server/lib/balance.ts` /
+`server/storage/balance.ts` does today — `totalPaidExpenses` there sums
+*all* `expenses` rows with `status='paid'`, event-scoped ones included) and
+instead reduce **Balance in Hand**:
+
 ```
 Bank Balance    = bankOpeningBalance + Σ(bank_transactions.amount WHERE type = 'deposit')
                                        − Σ(bank_transactions.amount WHERE type = 'withdrawal')
 
 Balance in Hand = Σ(bank_transactions.amount WHERE type = 'withdrawal')
                   − Σ(bank_transactions.amount WHERE type = 'cash_expense')
+                  − Σ(expenses.amount WHERE event_id IS NOT NULL AND status = 'paid')
 ```
+
+This is a breaking change to the existing Bank Fund balance formula: the
+`event_id IS NULL` ("general") expenses term disappears entirely (replaced
+by `bank_transactions`, per the Data Model section), and the `event_id IS
+NOT NULL` term moves from reducing Bank Balance to reducing Balance in
+Hand. `EventDetailScreen.tsx`'s own pending/paid UI and per-event totals
+are unaffected — only where the *paid* total feeds into system-wide balance
+changes.
 
 **Deposit status** ("[Month] deposit completed / pending"): a `deposit`-type
 `bank_transactions` row exists dated within that month or the following
@@ -172,7 +191,9 @@ Mirrors the existing app's approach — no new patterns:
 
 - **Backend**: unit tests for
   - Bank Balance / Balance in Hand formulas across all three transaction
-    types.
+    types, plus Balance in Hand correctly subtracting paid event expenses
+    (and ignoring pending ones, and ignoring any stray `event_id IS NULL`
+    rows).
   - Deposit-completed existence check (present in-month, present following
     month, absent).
   - Multi-month gap-fill insert logic, including uneven splits (e.g.
