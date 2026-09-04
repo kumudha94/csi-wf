@@ -33,7 +33,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   sortPreference: MemberSortPreference;
-  onSaveSort: (preference: MemberSortPreference) => void;
+  onSaveSort: (preference: MemberSortPreference) => Promise<void> | void;
 };
 
 export default function MemberSettingsModal({ visible, onClose, sortPreference, onSaveSort }: Props) {
@@ -58,6 +58,7 @@ export default function MemberSettingsModal({ visible, onClose, sortPreference, 
 
   const [secondaryColumns, setSecondaryColumns] = useState<Set<string>>(new Set(DEFAULT_SECONDARY_COLUMNS));
   const [isDownloading, setIsDownloading] = useState(false);
+  const [sortSaveStatus, setSortSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   // Every field here resets fresh each time the modal opens, matching the
   // rest of the Download section (only the sort preference persists).
@@ -74,6 +75,7 @@ export default function MemberSettingsModal({ visible, onClose, sortPreference, 
     setSpecificMembersEnabled(false);
     setSelectedMemberIds([]);
     setSecondaryColumns(new Set(DEFAULT_SECONDARY_COLUMNS));
+    setSortSaveStatus("idle");
   }, [visible, sortPreference]);
 
   // The member picker's candidate pool changes whenever the scope changes, so
@@ -127,8 +129,16 @@ export default function MemberSettingsModal({ visible, onClose, sortPreference, 
 
   const canDownload = scopeMode === "all" || selectedStatuses.size > 0;
 
-  const handleSaveSort = () => {
-    onSaveSort({ field: sortField, dir: sortDir });
+  const handleSaveSort = async () => {
+    setSortSaveStatus("saving");
+    try {
+      await onSaveSort({ field: sortField, dir: sortDir });
+      setSortSaveStatus("saved");
+      setTimeout(() => setSortSaveStatus("idle"), 1500);
+    } catch (error: any) {
+      setSortSaveStatus("idle");
+      Alert.alert("Could not save", error.message || "Something went wrong");
+    }
   };
 
   const handleDownload = async () => {
@@ -214,8 +224,10 @@ export default function MemberSettingsModal({ visible, onClose, sortPreference, 
                 }}
                 colors={colors}
               />
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveSort}>
-                <Text style={styles.saveButtonText}>Save</Text>
+              <TouchableOpacity style={styles.saveButton} onPress={handleSaveSort} disabled={sortSaveStatus === "saving"}>
+                <Text style={styles.saveButtonText}>
+                  {sortSaveStatus === "saving" ? "Saving..." : sortSaveStatus === "saved" ? "Saved" : "Save"}
+                </Text>
               </TouchableOpacity>
             </View>
           )}

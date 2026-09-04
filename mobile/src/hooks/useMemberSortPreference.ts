@@ -32,9 +32,9 @@ export function useMemberSortPreference() {
     });
   }, []);
 
-  const setPreference = useCallback((next: MemberSortPreference) => {
+  const setPreference = useCallback(async (next: MemberSortPreference) => {
     setPreferenceState(next);
-    SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(next));
+    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(next));
   }, []);
 
   return { preference, setPreference };
