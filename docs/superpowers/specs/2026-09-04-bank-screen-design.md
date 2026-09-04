@@ -222,3 +222,11 @@ Mirrors the existing app's approach — no new patterns:
   test data, safe to reset).
 - Amount-reconciliation for deposit status (existence check only, per
   decision above).
+- **Reports/PDF Bank Fund numbers**: `/api/reports` and its PDF keep
+  computing Bank Fund opening/closing balance with the old
+  `opening + contributions − paid expenses` formula, unchanged by this
+  phase. Once this ships, that figure will disagree with the Bank
+  screen/Dashboard's new deposit/withdrawal-based Bank Balance — an
+  accepted, known inconsistency until Reports gets its own dedicated
+  enhancement pass (already flagged as needed in `RoadMap.md`). No
+  real-world impact yet since existing data is test data being reset.
