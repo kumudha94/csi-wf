@@ -1,18 +1,66 @@
 import { Router } from "express";
 import { z } from "zod";
-import { insertMemberSchema } from "@shared/schema";
+import { insertMemberSchema, MEMBER_STATUSES } from "@shared/schema";
 import * as membersStorage from "../storage/members";
+import { generateMembersXlsx, isSecondaryColumnKey, type SecondaryColumnKey } from "../lib/xlsx";
 import { wrap } from "../lib/asyncHandler";
 import { parseId } from "../lib/parseId";
+import { fromMoney } from "../lib/money";
 
 export const membersRouter = Router();
+
+const sortFieldSchema = z.enum(["santhaNumber", "name"]).default("santhaNumber");
+const sortDirSchema = z.enum(["asc", "desc"]).default("asc");
+
+// Storage returns the raw numeric-column string for defaultAmount; every API
+// response serializes it to a plain number, same as contributions/expenses.
+function serializeMember<T extends { defaultAmount: string }>(member: T) {
+  return { ...member, defaultAmount: fromMoney(member.defaultAmount) };
+}
 
 membersRouter.get(
   "/",
   wrap(async (req, res) => {
     const search = typeof req.query.search === "string" ? req.query.search : undefined;
-    const list = await membersStorage.listMembers(search);
-    res.json(list);
+    const sortBy = sortFieldSchema.parse(req.query.sortBy);
+    const sortDir = sortDirSchema.parse(req.query.sortDir);
+    const list = await membersStorage.listMembers(search, sortBy, sortDir);
+    res.json(list.map(serializeMember));
+  })
+);
+
+// Registered before "/:id" so it isn't swallowed by the id route.
+membersRouter.get(
+  "/export",
+  wrap(async (req, res) => {
+    const sortBy = sortFieldSchema.parse(req.query.sortBy);
+    const sortDir = sortDirSchema.parse(req.query.sortDir);
+
+    const memberIds = typeof req.query.memberIds === "string" && req.query.memberIds.length > 0
+      ? req.query.memberIds.split(",").map((id) => parseId(id)).filter((id): id is number => id !== null)
+      : undefined;
+
+    const statuses = typeof req.query.statuses === "string" && req.query.statuses.length > 0
+      ? req.query.statuses.split(",").filter((s): s is (typeof MEMBER_STATUSES)[number] => (MEMBER_STATUSES as readonly string[]).includes(s))
+      : undefined;
+
+    const secondaryColumns = typeof req.query.columns === "string" && req.query.columns.length > 0
+      ? req.query.columns.split(",").filter(isSecondaryColumnKey)
+      : ([] as SecondaryColumnKey[]);
+
+    // Blank print-only columns (e.g. "Signature") — free text, capped so a
+    // malicious/careless caller can't ask for an unbounded sheet width.
+    const extraColumns = typeof req.query.extraColumns === "string" && req.query.extraColumns.length > 0
+      ? req.query.extraColumns.split(",").map((c) => c.trim()).filter(Boolean).slice(0, 10)
+      : [];
+
+    const memberRows = await membersStorage.listMembersForExport({ statuses, memberIds, sortBy, sortDir });
+    const buffer = await generateMembersXlsx(memberRows, secondaryColumns, extraColumns);
+
+    const today = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="csi-wf-members-${today}.xlsx"`);
+    res.send(buffer);
   })
 );
 
@@ -29,7 +77,7 @@ membersRouter.get(
       res.status(404).json({ error: "Member not found" });
       return;
     }
-    res.json(member);
+    res.json(serializeMember(member));
   })
 );
 
@@ -39,7 +87,7 @@ membersRouter.post(
     const data = insertMemberSchema.parse(req.body);
     try {
       const member = await membersStorage.createMember(data);
-      res.status(201).json(member);
+      res.status(201).json(serializeMember(member));
     } catch (error: any) {
       if (error.code === "23505") {
         res.status(409).json({ error: "That santha number is already in use" });
@@ -69,7 +117,7 @@ membersRouter.patch(
         res.status(404).json({ error: "Member not found" });
         return;
       }
-      res.json(member);
+      res.json(serializeMember(member));
     } catch (error: any) {
       if (error.code === "23505") {
         res.status(409).json({ error: "That santha number is already in use" });

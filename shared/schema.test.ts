@@ -58,6 +58,21 @@ describe("insertMemberSchema", () => {
     const result = insertMemberSchema.safeParse({ name: "Grace Devi", santhaNumber: "SW-101", status: "unknown" });
     expect(result.success).toBe(false);
   });
+
+  it("defaults defaultAmount to 0 when omitted", () => {
+    const result = insertMemberSchema.safeParse({ name: "Grace Devi", santhaNumber: "SW-101" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.defaultAmount).toBe(0);
+  });
+
+  it("accepts a positive defaultAmount and rejects a negative one", () => {
+    expect(
+      insertMemberSchema.safeParse({ name: "Grace Devi", santhaNumber: "SW-101", defaultAmount: 300 }).success
+    ).toBe(true);
+    expect(
+      insertMemberSchema.safeParse({ name: "Grace Devi", santhaNumber: "SW-101", defaultAmount: -50 }).success
+    ).toBe(false);
+  });
 });
 
 describe("insertAttributeDefinitionSchema", () => {
@@ -106,6 +121,16 @@ describe("insertAttributeDefinitionSchema", () => {
 describe("insertEventSchema", () => {
   it("requires a name", () => {
     expect(insertEventSchema.safeParse({ details: "Annual meet" }).success).toBe(false);
+  });
+
+  it("accepts an omitted or null eventDate", () => {
+    expect(insertEventSchema.safeParse({ name: "Annual Meet" }).success).toBe(true);
+    expect(insertEventSchema.safeParse({ name: "Annual Meet", eventDate: null }).success).toBe(true);
+  });
+
+  it("accepts a valid eventDate and rejects a malformed one", () => {
+    expect(insertEventSchema.safeParse({ name: "Annual Meet", eventDate: "2026-09-15" }).success).toBe(true);
+    expect(insertEventSchema.safeParse({ name: "Annual Meet", eventDate: "15-09-2026" }).success).toBe(false);
   });
 });
 

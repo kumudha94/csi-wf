@@ -11,6 +11,7 @@ export type Member = {
   age: number | null;
   remarks: string | null;
   status: MemberStatus;
+  defaultAmount: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -39,6 +40,7 @@ export type EventSummary = {
   id: number;
   name: string;
   details: string | null;
+  eventDate: string | null;
   createdAt: string;
   totalPaid: number;
 };
@@ -47,6 +49,7 @@ export type EventDetail = {
   id: number;
   name: string;
   details: string | null;
+  eventDate: string | null;
   createdAt: string;
 };
 
@@ -150,6 +153,16 @@ export type ReportCashFund = {
   closingBalance: number;
   income: ReportCashIncomeRow[];
   expenses: ReportCashExpenseRow[];
+};
+
+export type DashboardSummary = {
+  monthLabel: string;
+  weekOfMonth: number;
+  bank: { balance: number; pending: number };
+  cash: { balance: number };
+  members: { total: number; active: number; inactive: number; died: number; newThisMonth: number };
+  contributions: { thisMonth: number; thisWeek: number; total: number };
+  offering: { thisMonth: number; thisWeek: number; total: number };
 };
 
 export type ReportResponse = {

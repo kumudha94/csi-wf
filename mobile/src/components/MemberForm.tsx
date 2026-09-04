@@ -39,6 +39,7 @@ export default function MemberForm({ visible, onClose, member }: Props) {
   const [age, setAge] = useState("");
   const [remarks, setRemarks] = useState("");
   const [status, setStatus] = useState<MemberStatus>("active");
+  const [defaultAmount, setDefaultAmount] = useState("");
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function MemberForm({ visible, onClose, member }: Props) {
       setAge(member?.age ? String(member.age) : "");
       setRemarks(member?.remarks || "");
       setStatus(member?.status || "active");
+      setDefaultAmount(member ? String(member.defaultAmount) : "0");
       const values: Record<string, string> = {};
       for (const attr of member?.attributes || []) {
         values[attr.attributeKey] = attr.value || "";
@@ -72,6 +74,7 @@ export default function MemberForm({ visible, onClose, member }: Props) {
         age: age ? Number(age) : null,
         remarks: remarks.trim() || null,
         status,
+        defaultAmount: defaultAmount ? Number(defaultAmount) : 0,
       };
       const saved = isEditing
         ? await apiRequest<{ id: number }>(`/api/members/${member!.id}`, {
@@ -150,6 +153,15 @@ export default function MemberForm({ visible, onClose, member }: Props) {
           placeholder="Remarks"
           multiline
           numberOfLines={3}
+        />
+
+        <Text style={styles.label}>Default Santha Amount (₹)</Text>
+        <TextInput
+          style={styles.input}
+          value={defaultAmount}
+          onChangeText={setDefaultAmount}
+          placeholder="0.00"
+          keyboardType="decimal-pad"
         />
 
         <Text style={styles.label}>Status</Text>

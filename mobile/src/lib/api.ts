@@ -1,3 +1,4 @@
+import NetInfo from "@react-native-community/netinfo";
 import { getToken, clearToken } from "./authStorage";
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
@@ -12,6 +13,11 @@ export function setUnauthorizedHandler(fn: (() => void) | null): void {
 }
 
 export async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) {
+    throw new Error("No internet connection. Please check your network settings.");
+  }
+
   const token = await getToken();
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,

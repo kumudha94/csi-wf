@@ -9,6 +9,7 @@ export async function listEvents() {
       id: events.id,
       name: events.name,
       details: events.details,
+      eventDate: events.eventDate,
       createdAt: events.createdAt,
       totalPaid: sql<string>`coalesce(sum(${expenses.amount}) filter (where ${expenses.status} = 'paid'), 0)`,
     })

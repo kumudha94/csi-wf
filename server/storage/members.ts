@@ -1,16 +1,55 @@
 import { db } from "../db";
-import { members, memberAttributeValues, type Member, type MemberInput } from "@shared/schema";
-import { eq, ilike, or, and } from "drizzle-orm";
+import { members, memberAttributeValues, type Member, type MemberInput, type MemberStatus } from "@shared/schema";
+import { eq, ilike, or, and, asc, desc, inArray } from "drizzle-orm";
+import { toMoney } from "../lib/money";
 
-export async function listMembers(search?: string): Promise<Member[]> {
+export type MemberSortField = "santhaNumber" | "name";
+export type MemberSortDir = "asc" | "desc";
+
+function sortColumn(sortBy: MemberSortField) {
+  return sortBy === "name" ? members.name : members.santhaNumber;
+}
+
+export async function listMembers(
+  search?: string,
+  sortBy: MemberSortField = "santhaNumber",
+  sortDir: MemberSortDir = "asc"
+): Promise<Member[]> {
+  const orderBy = sortDir === "desc" ? desc(sortColumn(sortBy)) : asc(sortColumn(sortBy));
   if (search) {
     return db
       .select()
       .from(members)
       .where(or(ilike(members.name, `%${search}%`), ilike(members.santhaNumber, `%${search}%`)))
-      .orderBy(members.santhaNumber);
+      .orderBy(orderBy);
   }
-  return db.select().from(members).orderBy(members.santhaNumber);
+  return db.select().from(members).orderBy(orderBy);
+}
+
+export type MemberExportFilter = {
+  statuses?: MemberStatus[];
+  memberIds?: number[];
+  sortBy?: MemberSortField;
+  sortDir?: MemberSortDir;
+};
+
+// `memberIds` (from the mobile app's member picker) takes precedence over
+// `statuses` when both are present — the picker's candidate pool is already
+// status-filtered, so the picked ids are already a subset of any status match.
+export async function listMembersForExport({
+  statuses,
+  memberIds,
+  sortBy = "santhaNumber",
+  sortDir = "asc",
+}: MemberExportFilter): Promise<Member[]> {
+  const orderBy = sortDir === "desc" ? desc(sortColumn(sortBy)) : asc(sortColumn(sortBy));
+  if (memberIds && memberIds.length > 0) {
+    return db.select().from(members).where(inArray(members.id, memberIds)).orderBy(orderBy);
+  }
+  if (statuses && statuses.length > 0) {
+    return db.select().from(members).where(inArray(members.status, statuses)).orderBy(orderBy);
+  }
+  return db.select().from(members).orderBy(orderBy);
 }
 
 export async function getMember(id: number) {
@@ -24,14 +63,18 @@ export async function getMember(id: number) {
 }
 
 export async function createMember(data: MemberInput): Promise<Member> {
-  const [member] = await db.insert(members).values(data).returning();
+  const [member] = await db
+    .insert(members)
+    .values({ ...data, defaultAmount: toMoney(data.defaultAmount) })
+    .returning();
   return member;
 }
 
 export async function updateMember(id: number, data: Partial<MemberInput>): Promise<Member | null> {
+  const { defaultAmount, ...rest } = data;
   const [member] = await db
     .update(members)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...rest, ...(defaultAmount !== undefined ? { defaultAmount: toMoney(defaultAmount) } : {}), updatedAt: new Date() })
     .where(eq(members.id, id))
     .returning();
   return member ?? null;

@@ -3,10 +3,13 @@ import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert } 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
+import { formatCurrency } from "../lib/format";
 import type { Member, MemberWithAttributes } from "../lib/types";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
+import { useMemberSortPreference } from "../hooks/useMemberSortPreference";
 import MemberForm from "../components/MemberForm";
+import MemberSettingsModal from "../components/MemberSettingsModal";
 
 export default function MembersScreen() {
   const { colors } = useTheme();
@@ -15,10 +18,19 @@ export default function MembersScreen() {
   const [search, setSearch] = useState("");
   const [formVisible, setFormVisible] = useState(false);
   const [editingMember, setEditingMember] = useState<MemberWithAttributes | null>(null);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const { preference: sortPreference, setPreference: setSortPreference } = useMemberSortPreference();
 
   const { data: members = [], isFetching } = useQuery({
-    queryKey: ["members", search],
-    queryFn: () => apiRequest<Member[]>(`/api/members${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+    queryKey: ["members", search, sortPreference.field, sortPreference.dir],
+    queryFn: () =>
+      apiRequest<Member[]>(
+        `/api/members?${new URLSearchParams({
+          ...(search ? { search } : {}),
+          sortBy: sortPreference.field,
+          sortDir: sortPreference.dir,
+        }).toString()}`
+      ),
   });
 
   const deleteMutation = useMutation({
@@ -47,12 +59,22 @@ export default function MembersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search by name or santha number"
-        />
+        <View style={styles.searchInputWrap}>
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search by name or santha number"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity style={styles.clearButton} onPress={() => setSearch("")}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity style={styles.iconButton} onPress={() => setSettingsVisible(true)}>
+          <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => {
@@ -75,6 +97,9 @@ export default function MembersScreen() {
               <Text style={styles.memberName}>{[item.name, item.lastName].filter(Boolean).join(" ")}</Text>
               <Text style={styles.memberMeta}>Santha No: {item.santhaNumber}</Text>
               {item.phone ? <Text style={styles.memberMeta}>{item.phone}</Text> : null}
+              {item.defaultAmount > 0 ? (
+                <Text style={styles.memberMeta}>Default: {formatCurrency(item.defaultAmount)}</Text>
+              ) : null}
               {item.status !== "active" ? (
                 <Text style={[styles.memberMeta, styles.statusBadge]}>{item.status === "died" ? "Died" : "Inactive"}</Text>
               ) : null}
@@ -89,6 +114,12 @@ export default function MembersScreen() {
       />
 
       <MemberForm visible={formVisible} onClose={() => setFormVisible(false)} member={editingMember} />
+      <MemberSettingsModal
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        sortPreference={sortPreference}
+        onSaveSort={setSortPreference}
+      />
     </View>
   );
 }
@@ -96,12 +127,23 @@ export default function MembersScreen() {
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   searchRow: { flexDirection: "row", gap: 8, padding: 16, paddingBottom: 0 },
+  searchInputWrap: { flex: 1, justifyContent: "center" },
+  clearButton: { position: "absolute", right: 10 },
+  iconButton: {
+    width: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
   searchInput: {
-    flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     padding: 10,
+    paddingRight: 32,
     backgroundColor: colors.surface,
   },
   addButton: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 16, justifyContent: "center" },

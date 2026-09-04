@@ -98,6 +98,7 @@ export default function EventDetailScreen({ route, navigation }: Props) {
     <View style={styles.container}>
       {eventIsError ? <Text style={styles.emptyText}>Could not load event details.</Text> : (
         <View style={styles.summaryCard}>
+          {event?.eventDate ? <Text style={styles.eventMeta}>{event.eventDate}</Text> : null}
           {event?.details ? <Text style={styles.eventDetails}>{event.details}</Text> : null}
           <Text style={styles.summaryLine}>Paid: {formatCurrency(totalPaid)}</Text>
           <Text style={styles.summaryLineMuted}>Pending: {formatCurrency(totalPending)}</Text>
@@ -164,6 +165,7 @@ export default function EventDetailScreen({ route, navigation }: Props) {
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   summaryCard: { backgroundColor: colors.surface, margin: 16, marginBottom: 0, padding: 16, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
+  eventMeta: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
   eventDetails: { color: colors.textSecondary, marginBottom: 8 },
   summaryLine: { fontSize: 15, fontWeight: "700", color: colors.success },
   summaryLineMuted: { fontSize: 13, color: colors.warning, marginTop: 2 },

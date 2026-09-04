@@ -1,6 +1,8 @@
 import { pgTable, pgEnum, serial, varchar, text, integer, numeric, timestamp, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
+export const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
+
 // ---------- auth_account ----------
 export const authAccount = pgTable("auth_account", {
   id: serial("id").primaryKey(),
@@ -27,6 +29,10 @@ export const members = pgTable(
     age: integer("age"),
     remarks: text("remarks"),
     status: memberStatusEnum("status").notNull().default("active"),
+    // The santha amount this member pays each month, so a future bulk
+    // "generate this month's contributions" flow can prefill from it
+    // instead of a treasurer typing ~300 amounts by hand.
+    defaultAmount: numeric("default_amount", { precision: 10, scale: 2 }).notNull().default("0"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -46,6 +52,7 @@ export const insertMemberSchema = z.object({
   age: z.coerce.number().int().positive().max(150).nullable().optional(),
   remarks: z.string().nullable().optional(),
   status: z.enum(MEMBER_STATUSES).default("active"),
+  defaultAmount: z.coerce.number().nonnegative("Default amount cannot be negative").default(0),
 });
 export type MemberInput = z.infer<typeof insertMemberSchema>;
 
@@ -123,6 +130,9 @@ export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 150 }).notNull(),
   details: text("details"),
+  // Nullable: events created before this field existed have no date, and a
+  // treasurer may log an event before its date is finalized.
+  eventDate: varchar("event_date", { length: 10 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type Event = typeof events.$inferSelect;
@@ -130,6 +140,7 @@ export type Event = typeof events.$inferSelect;
 export const insertEventSchema = z.object({
   name: z.string().min(1, "Event name is required").max(150),
   details: z.string().nullable().optional(),
+  eventDate: dateStringSchema.nullable().optional(),
 });
 export type EventInput = z.infer<typeof insertEventSchema>;
 
@@ -148,8 +159,6 @@ export const expenses = pgTable("expenses", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type Expense = typeof expenses.$inferSelect;
-
-export const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
 
 export const insertExpenseSchema = z.object({
   eventId: z.coerce.number().int().positive().nullable().optional(),

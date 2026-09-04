@@ -8,8 +8,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View, ActivityIndicator } from "react-native";
 import type { ReactNode } from "react";
+import Toast from "react-native-toast-message";
 
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import DashboardScreen from "./src/screens/DashboardScreen";
 import MembersScreen from "./src/screens/MembersScreen";
 import EventsScreen from "./src/screens/EventsScreen";
 import EventDetailScreen from "./src/screens/EventDetailScreen";
@@ -22,12 +24,14 @@ import OnboardingScreen from "./src/screens/auth/OnboardingScreen";
 import PinLoginScreen from "./src/screens/auth/PinLoginScreen";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 import { ThemeProvider, useTheme } from "./src/contexts/ThemeContext";
+import { NetworkProvider } from "./src/contexts/NetworkContext";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 30, retry: 1 } },
 });
 
 export type TabParamList = {
+  Dashboard: undefined;
   Members: undefined;
   Events: undefined;
   Balance: undefined;
@@ -63,10 +67,12 @@ function TabNavigator() {
   const { colors } = useTheme();
   return (
     <Tab.Navigator
+      initialRouteName="Dashboard"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = "ellipse";
-          if (route.name === "Members") iconName = "people";
+          if (route.name === "Dashboard") iconName = "home";
+          else if (route.name === "Members") iconName = "people";
           else if (route.name === "Events") iconName = "calendar";
           else if (route.name === "Balance") iconName = "wallet";
           else if (route.name === "Reports") iconName = "document-text";
@@ -80,6 +86,7 @@ function TabNavigator() {
         headerTintColor: colors.textPrimary,
       })}
     >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Members" component={MembersScreen} />
       <Tab.Screen name="Events" component={EventsStackNavigator} options={{ headerShown: false }} />
       <Tab.Screen name="Balance" component={BalanceScreen} />
@@ -126,7 +133,10 @@ export default function App() {
         <AuthProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaProvider>
-              <AppContent />
+              <NetworkProvider>
+                <AppContent />
+              </NetworkProvider>
+              <Toast />
             </SafeAreaProvider>
           </GestureHandlerRootView>
         </AuthProvider>

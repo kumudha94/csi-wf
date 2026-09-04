@@ -52,6 +52,7 @@ export default function EventsScreen({ navigation }: Props) {
           <View style={styles.card}>
             <TouchableOpacity style={styles.cardContent} onPress={() => navigation.navigate("EventDetail", { eventId: item.id })}>
               <Text style={styles.eventName}>{item.name}</Text>
+              {item.eventDate ? <Text style={styles.eventMeta}>{item.eventDate}</Text> : null}
               <Text style={styles.eventTotal}>Spent: {formatCurrency(item.totalPaid)}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
@@ -86,6 +87,7 @@ const createStyles = (colors: ThemeColors) =>
     cardContent: { flex: 1 },
     deleteButton: { paddingLeft: 12, marginLeft: 8 },
     eventName: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
+    eventMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
     eventTotal: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
     emptyText: { textAlign: "center", color: colors.textMuted, marginTop: 40 },
     fab: { position: "absolute", bottom: 20, left: 16, right: 16, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, alignItems: "center" },
