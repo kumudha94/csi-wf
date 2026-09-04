@@ -3,12 +3,13 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
-import type { CashFundIncome, CashFundExpense } from "../lib/types";
+import type { BalanceResponse, CashFundIncome, CashFundExpense } from "../lib/types";
 import { formatCurrency } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 import CashIncomeForm from "./CashIncomeForm";
 import CashExpenseForm from "./CashExpenseForm";
+import ReportModal from "./ReportModal";
 
 type Tab = "income" | "expenses";
 
@@ -21,6 +22,13 @@ export default function CashFundPanel() {
   const [expenseFormVisible, setExpenseFormVisible] = useState(false);
   const [editingIncome, setEditingIncome] = useState<CashFundIncome | null>(null);
   const [editingExpense, setEditingExpense] = useState<CashFundExpense | null>(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+
+  const { data: balance, isError: balanceIsError } = useQuery({
+    queryKey: ["balance"],
+    queryFn: () => apiRequest<BalanceResponse>("/api/balance"),
+  });
+  const cashFund = balance?.cashFund;
 
   const { data: income = [], isError: incomeIsError } = useQuery({
     queryKey: ["cashFundIncome"],
@@ -70,6 +78,24 @@ export default function CashFundPanel() {
 
   return (
     <View style={{ flex: 1 }}>
+      <View style={styles.balanceCard}>
+        <View style={styles.balanceHeaderRow}>
+          <Text style={styles.balanceLabel}>Cash Balance</Text>
+          <TouchableOpacity onPress={() => setReportModalVisible(true)}>
+            <Ionicons name="document-text-outline" size={22} color={colors.white} />
+          </TouchableOpacity>
+        </View>
+        {balanceIsError ? (
+          <Text style={styles.balanceValue}>Could not load balance.</Text>
+        ) : (
+          <>
+            <Text style={styles.balanceValue}>{formatCurrency(cashFund?.balance ?? 0)}</Text>
+            <Text style={styles.balanceSubtext}>Offering: {formatCurrency(cashFund?.totalOffering ?? 0)}</Text>
+            <Text style={styles.balanceSubtext}>Donation: {formatCurrency(cashFund?.totalDonation ?? 0)}</Text>
+          </>
+        )}
+      </View>
+
       <View style={styles.tabRow}>
         <TouchableOpacity style={[styles.tabButton, tab === "income" && styles.tabButtonActive]} onPress={() => setTab("income")}>
           <Text style={[styles.tabButtonText, tab === "income" && styles.tabButtonTextActive]}>Offering / Donation</Text>
@@ -152,11 +178,22 @@ export default function CashFundPanel() {
 
       <CashIncomeForm visible={incomeFormVisible} onClose={() => setIncomeFormVisible(false)} income={editingIncome} />
       <CashExpenseForm visible={expenseFormVisible} onClose={() => setExpenseFormVisible(false)} expense={editingExpense} />
+      <ReportModal
+        visible={reportModalVisible}
+        onClose={() => setReportModalVisible(false)}
+        pdfPath="/api/reports/cash-fund/pdf"
+        fileNamePrefix="csi-wf-cash-fund-report"
+      />
     </View>
   );
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12 },
+  balanceHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  balanceLabel: { color: colors.primarySoft, fontSize: 13 },
+  balanceValue: { color: colors.white, fontSize: 28, fontWeight: "800", marginTop: 4 },
+  balanceSubtext: { color: colors.primarySoft, fontSize: 12, marginTop: 4 },
   tabRow: { flexDirection: "row", margin: 16, gap: 8 },
   tabButton: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tabButtonActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
