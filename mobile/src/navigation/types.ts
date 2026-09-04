@@ -6,4 +6,5 @@ export type EventsStackParamList = {
 export type SettingsStackParamList = {
   SettingsHome: undefined;
   CustomFields: undefined;
+  Members: undefined;
 };

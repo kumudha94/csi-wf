@@ -120,6 +120,18 @@ function CustomFieldsLink({ navigation }: { navigation: SettingsScreenProps["nav
   );
 }
 
+function MembersLink({ navigation }: { navigation: SettingsScreenProps["navigation"] }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <TouchableOpacity style={[styles.section, styles.linkRow]} onPress={() => navigation.navigate("Members")}>
+      <Text style={styles.sectionTitle}>Members</Text>
+      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
 function ChangePinSection() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -166,6 +178,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+      <MembersLink navigation={navigation} />
       <AppearanceSection />
       <OpeningBalanceSection />
       {/* Custom Member Fields is superseded by first-class member columns; hidden from the menu but left wired up. */}

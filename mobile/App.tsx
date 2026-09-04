@@ -16,8 +16,8 @@ import MembersScreen from "./src/screens/MembersScreen";
 import EventsScreen from "./src/screens/EventsScreen";
 import EventDetailScreen from "./src/screens/EventDetailScreen";
 import BalanceScreen from "./src/screens/BalanceScreen";
+import CashFundPanel from "./src/components/CashFundPanel";
 import type { EventsStackParamList, SettingsStackParamList } from "./src/navigation/types";
-import ReportsScreen from "./src/screens/ReportsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import CustomFieldsScreen from "./src/screens/CustomFieldsScreen";
 import OnboardingScreen from "./src/screens/auth/OnboardingScreen";
@@ -32,10 +32,9 @@ const queryClient = new QueryClient({
 
 export type TabParamList = {
   Dashboard: undefined;
-  Members: undefined;
   Events: undefined;
   Balance: undefined;
-  Reports: undefined;
+  CashFlow: undefined;
   Settings: undefined;
 };
 
@@ -59,6 +58,7 @@ function SettingsStackNavigator() {
     <SettingsStack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.textPrimary }}>
       <SettingsStack.Screen name="SettingsHome" component={SettingsScreen} options={{ title: "Settings" }} />
       <SettingsStack.Screen name="CustomFields" component={CustomFieldsScreen} options={{ title: "Custom Member Fields" }} />
+      <SettingsStack.Screen name="Members" component={MembersScreen} options={{ title: "Members" }} />
     </SettingsStack.Navigator>
   );
 }
@@ -72,10 +72,9 @@ function TabNavigator() {
         tabBarIcon: ({ color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = "ellipse";
           if (route.name === "Dashboard") iconName = "home";
-          else if (route.name === "Members") iconName = "people";
           else if (route.name === "Events") iconName = "calendar";
           else if (route.name === "Balance") iconName = "wallet";
-          else if (route.name === "Reports") iconName = "document-text";
+          else if (route.name === "CashFlow") iconName = "cash-outline";
           else if (route.name === "Settings") iconName = "settings";
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -87,10 +86,9 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Members" component={MembersScreen} />
       <Tab.Screen name="Events" component={EventsStackNavigator} options={{ headerShown: false }} />
       <Tab.Screen name="Balance" component={BalanceScreen} />
-      <Tab.Screen name="Reports" component={ReportsScreen} />
+      <Tab.Screen name="CashFlow" component={CashFundPanel} />
       <Tab.Screen name="Settings" component={SettingsStackNavigator} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
