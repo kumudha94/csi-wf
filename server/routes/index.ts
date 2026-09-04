@@ -9,6 +9,7 @@ import { eventsRouter } from "./events";
 import { expensesRouter } from "./expenses";
 import { uploadRouter } from "./upload";
 import { contributionsRouter } from "./contributions";
+import { bankTransactionsRouter } from "./bankTransactions";
 import { cashFundIncomeRouter } from "./cashFundIncome";
 import { cashFundExpensesRouter } from "./cashFundExpenses";
 import { reportsRouter } from "./reports";
@@ -29,6 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/expenses", requireAuth, expensesRouter);
   app.use("/api/upload", requireAuth, uploadRouter);
   app.use("/api/contributions", requireAuth, contributionsRouter);
+  app.use("/api/bank-transactions", requireAuth, bankTransactionsRouter);
   app.use("/api/cash-fund-income", requireAuth, cashFundIncomeRouter);
   app.use("/api/cash-fund-expenses", requireAuth, cashFundExpensesRouter);
   app.use("/api/reports", requireAuth, reportsRouter);
