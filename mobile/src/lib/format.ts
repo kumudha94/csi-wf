@@ -18,3 +18,13 @@ export function dateToString(date: Date): string {
 export function todayString(): string {
   return dateToString(new Date());
 }
+
+// Default date for a contribution collected today: if today is Sunday, use
+// today; otherwise the most recent past Sunday. Matches how the fellowship
+// actually dates a "this week's collection" entry.
+export function lastSundayOrToday(date: Date = new Date()): string {
+  const result = new Date(date);
+  result.setDate(date.getDate() - date.getDay());
+  return dateToString(result);
+}
+
