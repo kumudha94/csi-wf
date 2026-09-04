@@ -5,7 +5,7 @@ import * as reportsStorage from "../storage/reports";
 import { getSettings } from "../storage/settings";
 import { fromMoney } from "../lib/money";
 import { computeBalance } from "../lib/balance";
-import { generateReportPdf, generateCashFundReportPdf } from "../lib/pdf";
+import { generateReportPdf, generateCashFundReportPdf, generateBankFundReportPdf } from "../lib/pdf";
 import { db } from "../db";
 import { members } from "@shared/schema";
 
@@ -136,6 +136,73 @@ reportsRouter.get(
     const pdfBuffer = await generateCashFundReportPdf({ ...report.cashFund, from, to });
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="csi-wf-cash-fund-report-${from}-to-${to}.pdf"`);
+    res.send(pdfBuffer);
+  })
+);
+
+// Independent of buildReport() above -- that still serves the combined
+// report's deferred contributions/expenses formula. This uses the correct,
+// current Bank Fund model (deposits/withdrawals/balance-in-hand).
+async function buildBankFundReport(from: string, to: string) {
+  const settingsRow = await getSettings();
+  const inceptionBalance = settingsRow ? fromMoney(settingsRow.bankOpeningBalance) : 0;
+
+  const prior = await reportsStorage.getBankFundPriorActivity(from);
+  const openingBalance = computeBalance({
+    openingBalance: inceptionBalance,
+    totalContributions: fromMoney(prior.totalDeposits),
+    totalPaidExpenses: fromMoney(prior.totalWithdrawals),
+  });
+  const openingBalanceInHand = computeBalance({
+    openingBalance: 0,
+    totalContributions: fromMoney(prior.totalWithdrawals),
+    totalPaidExpenses: fromMoney(prior.totalCashExpenseFromHand) + fromMoney(prior.totalEventExpensesPaidFromBank),
+  });
+
+  const totals = await reportsStorage.getBankFundReportTotals({ from, to });
+  const totalDeposits = fromMoney(totals.totalDeposits);
+  const totalWithdrawals = fromMoney(totals.totalWithdrawals);
+  const totalCashExpenseFromHand = fromMoney(totals.totalCashExpenseFromHand);
+  const totalEventExpensesPaidFromBank = fromMoney(totals.totalEventExpensesPaidFromBank);
+
+  const closingBalance = computeBalance({
+    openingBalance,
+    totalContributions: totalDeposits,
+    totalPaidExpenses: totalWithdrawals,
+  });
+  const closingBalanceInHand = computeBalance({
+    openingBalance: openingBalanceInHand,
+    totalContributions: totalWithdrawals,
+    totalPaidExpenses: totalCashExpenseFromHand + totalEventExpensesPaidFromBank,
+  });
+
+  const bankTransactionRows = await reportsStorage.getBankTransactionsInRange({ from, to });
+  const eventExpenseRows = await reportsStorage.getBankSourcedEventExpensesInRange({ from, to });
+
+  return {
+    from,
+    to,
+    openingBalance,
+    totalDeposits,
+    totalWithdrawals,
+    closingBalance,
+    openingBalanceInHand,
+    totalCashExpenseFromHand,
+    totalEventExpensesPaidFromBank,
+    closingBalanceInHand,
+    bankTransactions: bankTransactionRows,
+    eventExpenses: eventExpenseRows,
+  };
+}
+
+reportsRouter.get(
+  "/bank-fund/pdf",
+  wrap(async (req, res) => {
+    const { from, to } = rangeSchema.parse(req.query);
+    const report = await buildBankFundReport(from, to);
+    const pdfBuffer = await generateBankFundReportPdf(report);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="csi-wf-bank-fund-report-${from}-to-${to}.pdf"`);
     res.send(pdfBuffer);
   })
 );

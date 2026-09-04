@@ -268,6 +268,136 @@ export function generateCashFundReportPdf(data: CashFundReportPdfData): Promise<
   });
 }
 
+export type BankFundReportPdfData = {
+  from: string;
+  to: string;
+  openingBalance: number;
+  totalDeposits: number;
+  totalWithdrawals: number;
+  closingBalance: number;
+  openingBalanceInHand: number;
+  totalCashExpenseFromHand: number;
+  totalEventExpensesPaidFromBank: number;
+  closingBalanceInHand: number;
+  bankTransactions: { type: string; description: string; amount: string; date: string }[];
+  eventExpenses: { eventName: string | null; description: string; amount: string; date: string }[];
+};
+
+// Bank Balance ledger: only deposit/withdrawal transactions move this
+// balance (matches the corrected getBalanceInputs() formula -- event
+// spending is never paid directly from the bank).
+function buildBankAccountLedgerRows(data: BankFundReportPdfData): LedgerRow[] {
+  type UnbalancedRow = Omit<LedgerRow, "balance"> & { order: number };
+  const rows: UnbalancedRow[] = [];
+
+  data.bankTransactions
+    .filter((t) => t.type === "deposit" || t.type === "withdrawal")
+    .forEach((t, i) => {
+      rows.push({
+        date: t.date,
+        description: t.description,
+        credit: t.type === "deposit" ? fromMoney(t.amount) : 0,
+        debit: t.type === "withdrawal" ? fromMoney(t.amount) : 0,
+        status: t.type === "deposit" ? "Deposited" : "Withdrawn",
+        order: i,
+      });
+    });
+
+  rows.sort((a, b) => (a.date === b.date ? a.order - b.order : a.date.localeCompare(b.date)));
+
+  let balance = data.openingBalance;
+  return rows.map((r) => {
+    balance += r.credit;
+    balance -= r.debit;
+    return { ...r, balance };
+  });
+}
+
+// Balance in Hand ledger: withdrawals credit it (money moved from the bank
+// into hand), cash_expense and bank-sourced paid event expenses debit it.
+function buildHandLedgerRows(data: BankFundReportPdfData): LedgerRow[] {
+  type UnbalancedRow = Omit<LedgerRow, "balance"> & { order: number };
+  const rows: UnbalancedRow[] = [];
+
+  data.bankTransactions
+    .filter((t) => t.type === "withdrawal" || t.type === "cash_expense")
+    .forEach((t, i) => {
+      rows.push({
+        date: t.date,
+        description: t.description,
+        credit: t.type === "withdrawal" ? fromMoney(t.amount) : 0,
+        debit: t.type === "cash_expense" ? fromMoney(t.amount) : 0,
+        status: t.type === "withdrawal" ? "Received" : "Spent",
+        order: i,
+      });
+    });
+
+  data.eventExpenses.forEach((e, i) => {
+    rows.push({
+      date: e.date,
+      description: e.eventName ? `[${e.eventName}] ${e.description}` : e.description,
+      credit: 0,
+      debit: fromMoney(e.amount),
+      status: "Spent",
+      order: data.bankTransactions.length + i,
+    });
+  });
+
+  rows.sort((a, b) => (a.date === b.date ? a.order - b.order : a.date.localeCompare(b.date)));
+
+  let balance = data.openingBalanceInHand;
+  return rows.map((r) => {
+    balance += r.credit;
+    balance -= r.debit;
+    return { ...r, balance };
+  });
+}
+
+// Standalone Bank-Fund-only report, mirroring generateCashFundReportPdf --
+// backs the Report icon on BankFlow's gradient card. Two ledgers because
+// Bank Fund has two balances (money in the bank vs. cash-in-hand withdrawn
+// for events), unlike Cash Fund's single balance.
+export function generateBankFundReportPdf(data: BankFundReportPdfData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 40 });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    doc.fontSize(18).text("CSI Women's Fellowship - Bank Fund Report", { align: "center" });
+    doc.moveDown(0.5);
+    doc.fontSize(11).text(`Period: ${data.from} to ${data.to}`, { align: "center" });
+    doc.moveDown(1.5);
+
+    doc.fontSize(13).text("Bank Balance");
+    doc.fontSize(11);
+    doc.text(`Opening balance: Rs. ${data.openingBalance.toFixed(2)}`);
+    doc.text(`Deposited: Rs. ${data.totalDeposits.toFixed(2)}`);
+    doc.text(`Withdrawn: Rs. ${data.totalWithdrawals.toFixed(2)}`);
+    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.closingBalance.toFixed(2)}`);
+    doc.font("Helvetica");
+    doc.moveDown(1);
+    doc.fontSize(9);
+    drawLedgerTable(doc, buildBankAccountLedgerRows(data));
+
+    doc.fontSize(11);
+    doc.moveDown(1.5);
+    doc.fontSize(13).text("Balance in Hand");
+    doc.fontSize(11);
+    doc.text(`Opening balance: Rs. ${data.openingBalanceInHand.toFixed(2)}`);
+    doc.text(`Received from bank: Rs. ${data.totalWithdrawals.toFixed(2)}`);
+    doc.text(`Spent: Rs. ${(data.totalCashExpenseFromHand + data.totalEventExpensesPaidFromBank).toFixed(2)}`);
+    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.closingBalanceInHand.toFixed(2)}`);
+    doc.font("Helvetica");
+    doc.moveDown(1);
+    doc.fontSize(9);
+    drawLedgerTable(doc, buildHandLedgerRows(data));
+
+    doc.end();
+  });
+}
+
 export type EventPdfData = {
   name: string;
   details: string | null;
