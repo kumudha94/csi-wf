@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rename the Balance tab to Bank and redesign its Bank Fund side around the real deposit → withdraw-to-hand → spend cycle (gradient balance card, Transfers/Contributions tabs), replacing one-at-a-time contribution entry with a fast collect-list flow that handles members paying in irregular multi-month gaps. The Bank Fund/Cash Fund switcher stays in place for now — CashFlow's own redesign already shipped separately (refined Offering/Donation and Expenses forms, `/api/balance` breakdown), but promoting it to its own top-level tab happens together with moving Members/Reports into Settings, as one later nav-reorg phase — not here.
+**Goal:** Rename the Balance tab to BankFlow and redesign its Bank Fund side around the real deposit → withdraw-to-hand → spend cycle (gradient balance card, Transfers/Contributions tabs), replacing one-at-a-time contribution entry with a fast collect-list flow that handles members paying in irregular multi-month gaps. The Bank Fund/Cash Fund switcher stays in place for now — CashFlow's own redesign already shipped separately (refined Offering/Donation and Expenses forms, `/api/balance` breakdown), but promoting it to its own top-level tab happens together with moving Members/Reports into Settings, as one later nav-reorg phase — not here.
 
-**Architecture:** New `BankTransactionForm` (structurally similar to `ExpenseForm` — reuses its receipt-photo pattern — plus a 3-option transfer-type selector and no status field) and `ContributionCollectForm` (a member list driven by a new `/collection-status` endpoint, replacing `ContributionForm`). `BalanceScreen`'s `BankFundView` sub-component is rewritten to show the new gradient card and mount these two. The outer Bank Fund/Cash Fund switcher and `CashFundPanel` are untouched. `App.tsx`'s tab label/icon changes from Balance to Bank. `DashboardScreen`'s Account details card is updated to match the new Bank Balance/Balance-in-Hand shape.
+**Architecture:** New `BankTransactionForm` (structurally similar to `ExpenseForm` — reuses its receipt-photo pattern — plus a 3-option transfer-type selector and no status field) and `ContributionCollectForm` (a member list driven by a new `/collection-status` endpoint, replacing `ContributionForm`). `BalanceScreen`'s `BankFundView` sub-component is rewritten to show the new gradient card and mount these two. The outer Bank Fund/Cash Fund switcher and `CashFundPanel` are untouched. `App.tsx`'s tab label/icon changes from Balance to BankFlow. `DashboardScreen`'s Account details card is updated to match the new Bank Balance/Balance-in-Hand shape.
 
 **Tech Stack:** Expo (React Native), TanStack Query, React Navigation — same as the existing mobile app, no new dependencies. No test runner is configured for this app (per the original spec); verification is `npx tsc --noEmit` plus manual golden-path checks in Expo.
 
@@ -19,7 +19,7 @@
 - Every mutation invalidates `["balance"]` and `["reports"]` on success, alongside its own resource's query key.
 - Currency formatting always goes through `formatCurrency()` from `mobile/src/lib/format.ts`; dates always through `todayString()`/`dateToString()`.
 - Every screen/component reads colors via `useTheme()` and builds its `StyleSheet` with `useMemo(() => createStyles(colors), [colors])` — never hardcoded colors.
-- The Bank Fund/Cash Fund switcher inside `BalanceScreen.tsx`, and `CashFundPanel.tsx` behind it, are **not touched** by this plan. CashFlow's own redesign already shipped (separately from this plan); what's still pending is promoting it out from behind this switcher into its own top-level tab, which happens together with moving Members and Reports into Settings and landing the final tab order (Dashboard → Events → Bank → CashFlow → Settings) — one later nav-reorg phase, not this one.
+- The Bank Fund/Cash Fund switcher inside `BalanceScreen.tsx`, and `CashFundPanel.tsx` behind it, are **not touched** by this plan. CashFlow's own redesign already shipped (separately from this plan); what's still pending is promoting it out from behind this switcher into its own top-level tab, which happens together with moving Members and Reports into Settings and landing the final tab order (Dashboard → Events → BankFlow → CashFlow → Settings) — one later nav-reorg phase, not this one.
 - `ContributionForm.tsx` is deleted once nothing imports it any more (Task 4) — its replacement is `ContributionCollectForm.tsx`.
 
 ---
@@ -942,7 +942,7 @@ git commit -m "feat: redesign bank fund screen (gradient card, transfers, contri
 
 ---
 
-### Task 5: `App.tsx` — rename the tab to Bank
+### Task 5: `App.tsx` — rename the tab to BankFlow
 
 **Files:**
 - Modify: `mobile/App.tsx`
@@ -958,12 +958,12 @@ In `mobile/App.tsx`, the `TabParamList` type still names the route `Balance` (Re
           else if (route.name === "Balance") iconName = "business";
 ```
 
-(was `"wallet"` — `"wallet"` reads more like the old single-balance concept; `"business"` (a bank-building glyph in Ionicons) better matches "Bank". If a different icon name is preferred at review time, any valid `Ionicons.glyphMap` key works here — this is a cosmetic choice, not a contract other code depends on.)
+(was `"wallet"` — `"wallet"` reads more like the old single-balance concept; `"business"` (a bank-building glyph in Ionicons) better matches "BankFlow". If a different icon name is preferred at review time, any valid `Ionicons.glyphMap` key works here — this is a cosmetic choice, not a contract other code depends on.)
 
-Then add `tabBarLabel: "Bank"` to that tab's `options`:
+Then add `tabBarLabel: "BankFlow"` to that tab's `options`:
 
 ```tsx
-      <Tab.Screen name="Balance" component={BalanceScreen} options={{ tabBarLabel: "Bank" }} />
+      <Tab.Screen name="Balance" component={BalanceScreen} options={{ tabBarLabel: "BankFlow" }} />
 ```
 
 - [ ] **Step 2: Typecheck**
@@ -973,13 +973,13 @@ Expected: no errors.
 
 - [ ] **Step 3: Manual verification**
 
-Run the app, confirm the bottom tab bar shows "Bank" (not "Balance") in that position, with the new icon, and it still opens the same screen from Task 4.
+Run the app, confirm the bottom tab bar shows "BankFlow" (not "Balance") in that position, with the new icon, and it still opens the same screen from Task 4.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add mobile/App.tsx
-git commit -m "feat: rename balance tab to bank"
+git commit -m "feat: rename balance tab to bankflow"
 ```
 
 ---
