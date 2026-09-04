@@ -5,8 +5,10 @@ import {
   insertEventSchema,
   insertExpenseSchema,
   insertContributionSchema,
+  collectContributionSchema,
   insertCashFundIncomeSchema,
   insertCashFundExpenseSchema,
+  insertBankTransactionSchema,
 } from "./schema";
 
 describe("insertMemberSchema", () => {
@@ -166,12 +168,36 @@ describe("insertExpenseSchema", () => {
 });
 
 describe("insertContributionSchema", () => {
-  it("requires a positive amount and a memberId", () => {
+  it("requires a positive amount, a memberId, and a forMonth", () => {
+    expect(
+      insertContributionSchema.safeParse({ memberId: 1, amount: 100, date: "2026-08-29", forMonth: "2026-08-01" })
+        .success
+    ).toBe(true);
+    expect(
+      insertContributionSchema.safeParse({ amount: 100, date: "2026-08-29", forMonth: "2026-08-01" }).success
+    ).toBe(false);
+    expect(
+      insertContributionSchema.safeParse({ memberId: 1, amount: -5, date: "2026-08-29", forMonth: "2026-08-01" })
+        .success
+    ).toBe(false);
     expect(
       insertContributionSchema.safeParse({ memberId: 1, amount: 100, date: "2026-08-29" }).success
-    ).toBe(true);
-    expect(insertContributionSchema.safeParse({ amount: 100, date: "2026-08-29" }).success).toBe(false);
-    expect(insertContributionSchema.safeParse({ memberId: 1, amount: -5, date: "2026-08-29" }).success).toBe(
+    ).toBe(false);
+  });
+});
+
+describe("collectContributionSchema", () => {
+  it("accepts a valid collection", () => {
+    const result = collectContributionSchema.safeParse({ memberId: 1, totalAmount: 300, date: "2026-09-07" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a missing memberId", () => {
+    expect(collectContributionSchema.safeParse({ totalAmount: 300, date: "2026-09-07" }).success).toBe(false);
+  });
+
+  it("rejects a zero or negative totalAmount", () => {
+    expect(collectContributionSchema.safeParse({ memberId: 1, totalAmount: 0, date: "2026-09-07" }).success).toBe(
       false
     );
   });
@@ -259,6 +285,59 @@ describe("insertCashFundExpenseSchema", () => {
     ).toBe(false);
     expect(
       insertCashFundExpenseSchema.safeParse({ description: "Auto fare", amount: 10, date: "2026-9-1" }).success
+    ).toBe(false);
+  });
+});
+
+describe("insertBankTransactionSchema", () => {
+  it("accepts a valid deposit", () => {
+    const result = insertBankTransactionSchema.safeParse({
+      type: "deposit",
+      description: "August contributions deposited",
+      amount: 15000,
+      date: "2026-09-04",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a valid withdrawal", () => {
+    const result = insertBankTransactionSchema.safeParse({
+      type: "withdrawal",
+      description: "Withdrawn for Christmas celebration",
+      amount: 20000,
+      date: "2026-09-04",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a valid cash_expense with a receipt photo", () => {
+    const result = insertBankTransactionSchema.safeParse({
+      type: "cash_expense",
+      description: "Decorations",
+      amount: 1500,
+      date: "2026-09-04",
+      receiptPhotoUrl: "https://storage.googleapis.com/bucket/receipts/abc.jpg",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid type", () => {
+    expect(
+      insertBankTransactionSchema.safeParse({ type: "refund", description: "x", amount: 100, date: "2026-09-04" })
+        .success
+    ).toBe(false);
+  });
+
+  it("rejects a missing description", () => {
+    expect(
+      insertBankTransactionSchema.safeParse({ type: "deposit", amount: 100, date: "2026-09-04" }).success
+    ).toBe(false);
+  });
+
+  it("rejects a zero or negative amount", () => {
+    expect(
+      insertBankTransactionSchema.safeParse({ type: "deposit", description: "x", amount: 0, date: "2026-09-04" })
+        .success
     ).toBe(false);
   });
 });

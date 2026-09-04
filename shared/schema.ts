@@ -178,6 +178,11 @@ export const contributions = pgTable("contributions", {
     .references(() => members.id, { onDelete: "restrict" }),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   date: varchar("date", { length: 10 }).notNull(),
+  // Which calendar month this payment counts toward (always the 1st of the
+  // month), distinct from `date` (when it was physically paid). A single
+  // gap-clearing payment produces multiple rows: same date, one row per
+  // covered forMonth.
+  forMonth: varchar("for_month", { length: 10 }).notNull(),
   note: text("note"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -187,9 +192,49 @@ export const insertContributionSchema = z.object({
   memberId: z.coerce.number().int().positive("A member must be selected"),
   amount: z.coerce.number().positive("Amount must be greater than 0"),
   date: dateStringSchema,
+  forMonth: dateStringSchema,
   note: z.string().nullable().optional(),
 });
 export type ContributionInput = z.infer<typeof insertContributionSchema>;
+
+// Used by POST /api/contributions/collect: a lump-sum payment that may
+// cover several unpaid months at once. The server computes which months
+// are owed and splits totalAmount across them — see
+// server/lib/contributionMonths.ts.
+export const collectContributionSchema = z.object({
+  memberId: z.coerce.number().int().positive("A member must be selected"),
+  totalAmount: z.coerce.number().positive("Amount must be greater than 0"),
+  date: dateStringSchema,
+});
+export type CollectContributionInput = z.infer<typeof collectContributionSchema>;
+
+// ---------- bank_transactions ----------
+export const BANK_TRANSACTION_TYPES = ["deposit", "withdrawal", "cash_expense"] as const;
+export type BankTransactionType = (typeof BANK_TRANSACTION_TYPES)[number];
+
+export const bankTransactions = pgTable("bank_transactions", {
+  id: serial("id").primaryKey(),
+  // deposit = money moved into the bank (e.g. depositing collected
+  // contributions, or redepositing leftover in-hand cash). withdrawal =
+  // money taken out of the bank into hand, for an upcoming event.
+  // cash_expense = money spent from the in-hand cash.
+  type: varchar("type", { length: 20 }).notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  receiptPhotoUrl: varchar("receipt_photo_url", { length: 500 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type BankTransaction = typeof bankTransactions.$inferSelect;
+
+export const insertBankTransactionSchema = z.object({
+  type: z.enum(BANK_TRANSACTION_TYPES),
+  description: z.string().min(1, "Description is required").max(255),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  date: dateStringSchema,
+  receiptPhotoUrl: z.string().url().nullable().optional(),
+});
+export type BankTransactionInput = z.infer<typeof insertBankTransactionSchema>;
 
 // ---------- cash_fund_income ----------
 export const CASH_INCOME_TYPES = ["offering", "donation"] as const;
