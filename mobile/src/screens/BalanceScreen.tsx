@@ -9,39 +9,11 @@ import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 import BankTransactionForm from "../components/BankTransactionForm";
 import ContributionCollectForm from "../components/ContributionCollectForm";
-import CashFundPanel from "../components/CashFundPanel";
 import ReportModal from "../components/ReportModal";
 
-type Fund = "bank" | "cash";
 type BankTab = "transfers" | "contributions";
 
 export default function BalanceScreen() {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const [fund, setFund] = useState<Fund>("bank");
-
-  const { data: balance, isError: balanceIsError } = useQuery({
-    queryKey: ["balance"],
-    queryFn: () => apiRequest<BalanceResponse>("/api/balance"),
-  });
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.fundRow}>
-        <TouchableOpacity style={[styles.fundButton, fund === "bank" && styles.fundButtonActive]} onPress={() => setFund("bank")}>
-          <Text style={[styles.fundButtonText, fund === "bank" && styles.fundButtonTextActive]}>Bank Fund</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.fundButton, fund === "cash" && styles.fundButtonActive]} onPress={() => setFund("cash")}>
-          <Text style={[styles.fundButtonText, fund === "cash" && styles.fundButtonTextActive]}>Cash Fund</Text>
-        </TouchableOpacity>
-      </View>
-
-      {fund === "bank" ? <BankFundView balance={balance} balanceIsError={balanceIsError} /> : <CashFundPanel />}
-    </View>
-  );
-}
-
-function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; balanceIsError: boolean }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
@@ -50,6 +22,10 @@ function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; 
   const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
   const [reportModalVisible, setReportModalVisible] = useState(false);
 
+  const { data: balance, isError: balanceIsError } = useQuery({
+    queryKey: ["balance"],
+    queryFn: () => apiRequest<BalanceResponse>("/api/balance"),
+  });
   const bankFund = balance?.bankFund;
 
   const { data: transactions = [], isError: transactionsIsError } = useQuery({
@@ -76,10 +52,9 @@ function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; 
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.container}>
       <View style={styles.balanceCard}>
         <View style={styles.balanceHeaderRow}>
-          <Text style={styles.balanceLabel}>Bank Fund</Text>
           <TouchableOpacity onPress={() => setReportModalVisible(true)}>
             <Ionicons name="document-text-outline" size={22} color={colors.white} />
           </TouchableOpacity>
@@ -177,16 +152,11 @@ function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12 },
-  balanceHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  balanceHeaderRow: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 4 },
   balanceRow: { marginBottom: 4 },
   balanceLabel: { color: colors.primarySoft, fontSize: 13 },
   balanceValue: { color: colors.white, fontSize: 22, fontWeight: "800", marginTop: 2 },
   depositStatus: { color: colors.primarySoft, fontSize: 12, marginTop: 12, fontWeight: "600" },
-  fundRow: { flexDirection: "row", marginHorizontal: 16, marginTop: 16, gap: 8 },
-  fundButton: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  fundButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  fundButtonText: { color: colors.textSecondary, fontWeight: "700", fontSize: 13 },
-  fundButtonTextActive: { color: colors.white },
   tabRow: { flexDirection: "row", margin: 16, gap: 8 },
   tabButton: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tabButtonActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
