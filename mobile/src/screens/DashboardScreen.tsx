@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
@@ -29,13 +30,14 @@ export default function DashboardScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={["top"]}>
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ padding: 16 }}
@@ -115,6 +117,7 @@ export default function DashboardScreen() {
         </>
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

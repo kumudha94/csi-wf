@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
@@ -77,14 +78,12 @@ export default function CashFundPanel() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
       <View style={styles.balanceCard}>
-        <View style={styles.balanceHeaderRow}>
-          <Text style={styles.balanceLabel}>Cash Balance</Text>
-          <TouchableOpacity onPress={() => setReportModalVisible(true)}>
-            <Ionicons name="document-text-outline" size={22} color={colors.white} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.reportIconButton} onPress={() => setReportModalVisible(true)}>
+          <Ionicons name="document-text-outline" size={22} color={colors.white} />
+        </TouchableOpacity>
+        <Text style={styles.balanceLabel}>Cash Balance</Text>
         {balanceIsError ? (
           <Text style={styles.balanceValue}>Could not load balance.</Text>
         ) : (
@@ -107,6 +106,7 @@ export default function CashFundPanel() {
 
       {tab === "income" ? (
         <FlatList
+          style={{ flex: 1 }}
           data={income}
           keyExtractor={(i) => String(i.id)}
           renderItem={({ item }) => (
@@ -134,6 +134,7 @@ export default function CashFundPanel() {
         />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={expenses}
           keyExtractor={(e) => String(e.id)}
           renderItem={({ item }) => (
@@ -184,13 +185,13 @@ export default function CashFundPanel() {
         pdfPath="/api/reports/cash-fund/pdf"
         fileNamePrefix="csi-wf-cash-fund-report"
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12 },
-  balanceHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12, position: "relative" },
+  reportIconButton: { position: "absolute", top: 16, right: 16, zIndex: 1 },
   balanceLabel: { color: colors.primarySoft, fontSize: 13 },
   balanceValue: { color: colors.white, fontSize: 28, fontWeight: "800", marginTop: 4 },
   balanceSubtext: { color: colors.primarySoft, fontSize: 12, marginTop: 4 },

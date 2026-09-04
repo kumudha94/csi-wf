@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
@@ -52,13 +53,11 @@ export default function BalanceScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.balanceCard}>
-        <View style={styles.balanceHeaderRow}>
-          <TouchableOpacity onPress={() => setReportModalVisible(true)}>
-            <Ionicons name="document-text-outline" size={22} color={colors.white} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.reportIconButton} onPress={() => setReportModalVisible(true)}>
+          <Ionicons name="document-text-outline" size={22} color={colors.white} />
+        </TouchableOpacity>
         {balanceIsError ? (
           <Text style={styles.balanceValue}>Could not load balance.</Text>
         ) : (
@@ -146,14 +145,14 @@ export default function BalanceScreen() {
         pdfPath="/api/reports/bank-fund/pdf"
         fileNamePrefix="csi-wf-bank-fund-report"
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12 },
-  balanceHeaderRow: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 4 },
+  balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12, position: "relative" },
+  reportIconButton: { position: "absolute", top: 16, right: 16, zIndex: 1 },
   balanceRow: { marginBottom: 4 },
   balanceLabel: { color: colors.primarySoft, fontSize: 13 },
   balanceValue: { color: colors.white, fontSize: 22, fontWeight: "800", marginTop: 2 },
