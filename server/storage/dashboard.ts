@@ -4,7 +4,8 @@ import { sql, gte, lte, and, eq } from "drizzle-orm";
 import { fromMoney } from "../lib/money";
 import { computeBalance } from "../lib/balance";
 import { getBalanceInputs } from "./balance";
-import { getMonthLabel, getMonthRange, getMonthStart, getWeekOfMonthRange } from "../lib/dateRange";
+import { hasDepositInRange } from "./bankTransactions";
+import { getMonthLabel, getMonthRange, getMonthStart, getWeekOfMonthRange, getDepositWindow } from "../lib/dateRange";
 
 export async function getDashboardSummary() {
   const now = new Date();
@@ -16,14 +17,22 @@ export async function getDashboardSummary() {
   const balanceInputs = await getBalanceInputs();
   const bankBalance = computeBalance({
     openingBalance: balanceInputs.bankOpeningBalance,
-    totalContributions: balanceInputs.totalContributions,
-    totalPaidExpenses: balanceInputs.totalPaidExpenses,
+    totalContributions: balanceInputs.totalDeposits,
+    totalPaidExpenses: balanceInputs.totalWithdrawals,
+  });
+  const balanceInHand = computeBalance({
+    openingBalance: 0,
+    totalContributions: balanceInputs.totalWithdrawals,
+    totalPaidExpenses: balanceInputs.totalCashExpenseFromHand + balanceInputs.totalEventExpensesPaid,
   });
   const cashBalance = computeBalance({
     openingBalance: balanceInputs.cashOpeningBalance,
     totalContributions: balanceInputs.totalCashIncome,
     totalPaidExpenses: balanceInputs.totalCashExpenses,
   });
+  const depositWindow = getDepositWindow(now);
+  const depositCompleted = await hasDepositInRange(depositWindow.from, depositWindow.to);
+
 
   const statusCounts = await db
     .select({ status: members.status, count: sql<number>`count(*)::int` })
@@ -68,7 +77,7 @@ export async function getDashboardSummary() {
   return {
     monthLabel,
     weekOfMonth: weekRange.weekNumber,
-    bank: { balance: bankBalance, pending: balanceInputs.totalPendingExpenses },
+    bank: { balance: bankBalance, inHand: balanceInHand, depositStatus: { monthLabel, completed: depositCompleted } },
     cash: { balance: cashBalance },
     members: {
       total: statusCounts.reduce((sum, row) => sum + row.count, 0),
@@ -80,7 +89,7 @@ export async function getDashboardSummary() {
     contributions: {
       thisMonth: fromMoney(contribMonth.total),
       thisWeek: fromMoney(contribWeek.total),
-      total: balanceInputs.totalContributions,
+      total: balanceInputs.totalDeposits, // "total contributions" now tracked as deposits into the bank -- see note below
     },
     offering: {
       thisMonth: fromMoney(offeringMonth.total),
