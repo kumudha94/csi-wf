@@ -59,6 +59,7 @@ function OpeningBalanceSection() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       if (variables.bankOpeningBalance !== undefined) setBankValue(null);
       if (variables.cashOpeningBalance !== undefined) setCashValue(null);
       Alert.alert("Saved", "Opening balance updated.");

@@ -89,6 +89,7 @@ export default function BankTransactionForm({ visible, onClose, transaction }: P
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bankTransactions"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       onClose();
     },

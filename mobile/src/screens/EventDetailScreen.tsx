@@ -79,6 +79,7 @@ export default function EventDetailScreen({ route, navigation }: Props) {
       queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] });
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
     onError: (error: any) => Alert.alert("Could not delete expense", error.message),

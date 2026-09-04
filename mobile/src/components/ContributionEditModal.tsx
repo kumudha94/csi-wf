@@ -46,6 +46,7 @@ export default function ContributionEditModal({ visible, onClose, member }: Prop
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contributionCollectionStatus"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       onClose();
     },

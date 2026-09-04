@@ -48,6 +48,7 @@ export default function CashFundPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cashFundIncome"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
     onError: (error: any) => Alert.alert("Could not delete entry", error.message),
@@ -58,6 +59,7 @@ export default function CashFundPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cashFundExpenses"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
     onError: (error: any) => Alert.alert("Could not delete expense", error.message),

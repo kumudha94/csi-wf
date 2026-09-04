@@ -77,6 +77,7 @@ export default function CashIncomeForm({ visible, onClose, income }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["cashFundIncome"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       onClose();

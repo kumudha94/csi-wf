@@ -48,6 +48,7 @@ export default function CashExpenseForm({ visible, onClose, expense }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["cashFundExpenses"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       onClose();

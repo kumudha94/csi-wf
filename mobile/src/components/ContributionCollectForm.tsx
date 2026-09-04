@@ -52,6 +52,7 @@ export default function ContributionCollectForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contributionCollectionStatus"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
     onError: (error: any) => Alert.alert("Could not delete contribution", error.message),

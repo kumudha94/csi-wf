@@ -47,6 +47,7 @@ export default function AddContributionModal({ visible, onClose }: Props) {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["contributionCollectionStatus"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       setAmounts((prev) => {
         const next = { ...prev };
@@ -131,7 +132,9 @@ export default function AddContributionModal({ visible, onClose }: Props) {
                     onPress={() => handleAdd(item)}
                     disabled={collectMutation.isPending}
                   >
-                    <Text style={styles.actionButtonText}>Add</Text>
+                    <Text style={styles.actionButtonText}>
+                      {collectMutation.isPending && collectMutation.variables?.memberId === item.memberId ? "Adding..." : "Add"}
+                    </Text>
                   </TouchableOpacity>
                 </>
               )}
