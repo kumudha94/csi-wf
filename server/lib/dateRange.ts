@@ -43,3 +43,21 @@ export function getWeekOfMonthRange(date: Date): { weekNumber: number } & DateRa
     to: `${year}-${pad(month + 1)}-${pad(weekEndDay)}`,
   };
 }
+
+// The window a deposit must land in to count as "this month's contributions
+// were deposited" -- the month itself, or the following month (treasurers
+// commonly deposit a month's collected cash early the next month rather
+// than same-day).
+export function getDepositWindow(date: Date): DateRange {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const from = `${year}-${pad(month + 1)}-01`;
+
+  const nextMonthDate = new Date(year, month + 1, 1);
+  const nextYear = nextMonthDate.getFullYear();
+  const nextMonth = nextMonthDate.getMonth();
+  const nextMonthLastDay = new Date(nextYear, nextMonth + 1, 0).getDate();
+  const to = `${nextYear}-${pad(nextMonth + 1)}-${pad(nextMonthLastDay)}`;
+
+  return { from, to };
+}
