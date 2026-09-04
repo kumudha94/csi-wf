@@ -10,6 +10,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import BankTransactionForm from "../components/BankTransactionForm";
 import ContributionCollectForm from "../components/ContributionCollectForm";
 import CashFundPanel from "../components/CashFundPanel";
+import ReportModal from "../components/ReportModal";
 
 type Fund = "bank" | "cash";
 type BankTab = "transfers" | "contributions";
@@ -47,6 +48,7 @@ function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; 
   const [tab, setTab] = useState<BankTab>("transfers");
   const [transactionFormVisible, setTransactionFormVisible] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   const bankFund = balance?.bankFund;
 
@@ -76,6 +78,12 @@ function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; 
   return (
     <View style={{ flex: 1 }}>
       <View style={styles.balanceCard}>
+        <View style={styles.balanceHeaderRow}>
+          <Text style={styles.balanceLabel}>Bank Fund</Text>
+          <TouchableOpacity onPress={() => setReportModalVisible(true)}>
+            <Ionicons name="document-text-outline" size={22} color={colors.white} />
+          </TouchableOpacity>
+        </View>
         {balanceIsError ? (
           <Text style={styles.balanceValue}>Could not load balance.</Text>
         ) : (
@@ -156,6 +164,12 @@ function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; 
         onClose={() => setTransactionFormVisible(false)}
         transaction={editingTransaction}
       />
+      <ReportModal
+        visible={reportModalVisible}
+        onClose={() => setReportModalVisible(false)}
+        pdfPath="/api/reports/bank-fund/pdf"
+        fileNamePrefix="csi-wf-bank-fund-report"
+      />
     </View>
   );
 }
@@ -163,6 +177,7 @@ function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12 },
+  balanceHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   balanceRow: { marginBottom: 4 },
   balanceLabel: { color: colors.primarySoft, fontSize: 13 },
   balanceValue: { color: colors.white, fontSize: 22, fontWeight: "800", marginTop: 2 },
