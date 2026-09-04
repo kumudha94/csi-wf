@@ -85,10 +85,10 @@ function TabNavigator() {
         headerTintColor: colors.textPrimary,
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Events" component={EventsStackNavigator} options={{ headerShown: false }} />
-      <Tab.Screen name="Balance" component={BalanceScreen} options={{ tabBarLabel: "BankFund" }} />
-      <Tab.Screen name="CashFlow" component={CashFundPanel} options={{ tabBarLabel: "CashFund" }} />
+      <Tab.Screen name="Balance" component={BalanceScreen} options={{ tabBarLabel: "BankFund", headerShown: false }} />
+      <Tab.Screen name="CashFlow" component={CashFundPanel} options={{ tabBarLabel: "CashFund", headerShown: false }} />
       <Tab.Screen name="Settings" component={SettingsStackNavigator} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
