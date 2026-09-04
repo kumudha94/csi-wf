@@ -3,16 +3,16 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
-import type { BalanceResponse, Expense, Contribution } from "../lib/types";
+import type { BalanceResponse, BankTransaction } from "../lib/types";
 import { formatCurrency } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
-import ContributionForm from "../components/ContributionForm";
-import ExpenseForm from "../components/ExpenseForm";
+import BankTransactionForm from "../components/BankTransactionForm";
+import ContributionCollectForm from "../components/ContributionCollectForm";
 import CashFundPanel from "../components/CashFundPanel";
 
 type Fund = "bank" | "cash";
-type BankTab = "contributions" | "expenses";
+type BankTab = "transfers" | "contributions";
 
 export default function BalanceScreen() {
   const { colors } = useTheme();
@@ -24,30 +24,8 @@ export default function BalanceScreen() {
     queryFn: () => apiRequest<BalanceResponse>("/api/balance"),
   });
 
-  const displayedBalance = fund === "bank" ? balance?.bankFund?.balance : balance?.cashFund?.balance;
-
   return (
     <View style={styles.container}>
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>{fund === "bank" ? "Bank Fund Balance" : "Cash Fund Balance"}</Text>
-        {balanceIsError ? (
-          <Text style={styles.balanceValue}>Could not load balance.</Text>
-        ) : (
-          <>
-            <Text style={styles.balanceValue}>{formatCurrency(displayedBalance ?? 0)}</Text>
-            {fund === "bank" && (
-              <Text style={styles.balancePending}>Pending expenses: {formatCurrency(balance?.bankFund?.totalPendingExpenses ?? 0)}</Text>
-            )}
-            {fund === "cash" && (
-              <>
-                <Text style={styles.balancePending}>Offering: {formatCurrency(balance?.cashFund?.totalOffering ?? 0)}</Text>
-                <Text style={styles.balancePending}>Donation: {formatCurrency(balance?.cashFund?.totalDonation ?? 0)}</Text>
-              </>
-            )}
-          </>
-        )}
-      </View>
-
       <View style={styles.fundRow}>
         <TouchableOpacity style={[styles.fundButton, fund === "bank" && styles.fundButtonActive]} onPress={() => setFund("bank")}>
           <Text style={[styles.fundButtonText, fund === "bank" && styles.fundButtonTextActive]}>Bank Fund</Text>
@@ -57,180 +35,139 @@ export default function BalanceScreen() {
         </TouchableOpacity>
       </View>
 
-      {fund === "bank" ? <BankFundView /> : <CashFundPanel />}
+      {fund === "bank" ? <BankFundView balance={balance} balanceIsError={balanceIsError} /> : <CashFundPanel />}
     </View>
   );
 }
 
-function BankFundView() {
+function BankFundView({ balance, balanceIsError }: { balance?: BalanceResponse; balanceIsError: boolean }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<BankTab>("expenses");
-  const [contributionFormVisible, setContributionFormVisible] = useState(false);
-  const [expenseFormVisible, setExpenseFormVisible] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [editingContribution, setEditingContribution] = useState<Contribution | null>(null);
+  const [tab, setTab] = useState<BankTab>("transfers");
+  const [transactionFormVisible, setTransactionFormVisible] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
 
-  const { data: generalExpenses = [], isError: generalExpensesIsError } = useQuery({
-    queryKey: ["expenses", "general"],
-    queryFn: () => apiRequest<Expense[]>("/api/expenses?eventId=general"),
-    enabled: tab === "expenses",
+  const bankFund = balance?.bankFund;
+
+  const { data: transactions = [], isError: transactionsIsError } = useQuery({
+    queryKey: ["bankTransactions"],
+    queryFn: () => apiRequest<BankTransaction[]>("/api/bank-transactions"),
+    enabled: tab === "transfers",
   });
 
-  const deleteExpenseMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/expenses/${id}`, { method: "DELETE" }),
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/bank-transactions/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses", "general"] });
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["bankTransactions"] });
       queryClient.invalidateQueries({ queryKey: ["balance"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
-    onError: (error: any) => Alert.alert("Could not delete expense", error.message),
+    onError: (error: any) => Alert.alert("Could not delete transfer", error.message),
   });
 
-  const confirmDeleteExpense = (expense: Expense) => {
-    Alert.alert("Delete expense", `Remove "${expense.description}"?`, [
+  const confirmDelete = (transaction: BankTransaction) => {
+    Alert.alert("Delete transfer", `Remove "${transaction.description}"?`, [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteExpenseMutation.mutate(expense.id) },
+      { text: "Delete", style: "destructive", onPress: () => deleteMutation.mutate(transaction.id) },
     ]);
   };
 
   return (
     <View style={{ flex: 1 }}>
+      <View style={styles.balanceCard}>
+        {balanceIsError ? (
+          <Text style={styles.balanceValue}>Could not load balance.</Text>
+        ) : (
+          <>
+            <View style={styles.balanceRow}>
+              <Text style={styles.balanceLabel}>Bank Balance</Text>
+              <Text style={styles.balanceValue}>{formatCurrency(bankFund?.balance ?? 0)}</Text>
+            </View>
+            <View style={styles.balanceRow}>
+              <Text style={styles.balanceLabel}>Balance in Hand</Text>
+              <Text style={styles.balanceValue}>{formatCurrency(bankFund?.balanceInHand ?? 0)}</Text>
+            </View>
+            <Text style={styles.depositStatus}>
+              {bankFund?.depositStatus.monthLabel} deposit{" "}
+              {bankFund?.depositStatus.completed ? "completed" : "pending"}
+            </Text>
+          </>
+        )}
+      </View>
+
       <View style={styles.tabRow}>
-        <TouchableOpacity style={[styles.tabButton, tab === "expenses" && styles.tabButtonActive]} onPress={() => setTab("expenses")}>
-          <Text style={[styles.tabButtonText, tab === "expenses" && styles.tabButtonTextActive]}>General Expenses</Text>
+        <TouchableOpacity style={[styles.tabButton, tab === "transfers" && styles.tabButtonActive]} onPress={() => setTab("transfers")}>
+          <Text style={[styles.tabButtonText, tab === "transfers" && styles.tabButtonTextActive]}>Transfers</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tabButton, tab === "contributions" && styles.tabButtonActive]} onPress={() => setTab("contributions")}>
           <Text style={[styles.tabButtonText, tab === "contributions" && styles.tabButtonTextActive]}>Contributions</Text>
         </TouchableOpacity>
       </View>
 
-      {tab === "expenses" ? (
+      {tab === "transfers" ? (
         <FlatList
-          data={generalExpenses}
-          keyExtractor={(e) => String(e.id)}
+          data={transactions}
+          keyExtractor={(t) => String(t.id)}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <TouchableOpacity
                 style={styles.cardContent}
                 onPress={() => {
-                  setEditingExpense(item);
-                  setExpenseFormVisible(true);
+                  setEditingTransaction(item);
+                  setTransactionFormVisible(true);
                 }}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle}>{item.description}</Text>
                   <Text style={styles.cardMeta}>{item.date}</Text>
                 </View>
-                <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
+                <Text style={styles.cardAmount}>
+                  {item.type === "deposit" ? "+" : "-"}
+                  {formatCurrency(item.amount)}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDeleteExpense(item)}>
+              <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
                 <Ionicons name="trash-outline" size={20} color={colors.danger} />
               </TouchableOpacity>
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>{generalExpensesIsError ? "Could not load expenses." : "No general expenses yet."}</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{transactionsIsError ? "Could not load transfers." : "No transfers logged yet."}</Text>}
           contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
         />
       ) : (
-        <RecentContributions
-          onEdit={(c) => {
-            setEditingContribution(c);
-            setContributionFormVisible(true);
-          }}
-        />
+        <ContributionCollectForm />
       )}
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => {
-          if (tab === "expenses") {
-            setEditingExpense(null);
-            setExpenseFormVisible(true);
-          } else {
-            setEditingContribution(null);
-            setContributionFormVisible(true);
-          }
-        }}
-      >
-        <Text style={styles.fabText}>{tab === "expenses" ? "+ Add Expense" : "+ Add Contribution"}</Text>
-      </TouchableOpacity>
+      {tab === "transfers" && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => {
+            setEditingTransaction(null);
+            setTransactionFormVisible(true);
+          }}
+        >
+          <Text style={styles.fabText}>+ Add Transfer</Text>
+        </TouchableOpacity>
+      )}
 
-      <ExpenseForm
-        visible={expenseFormVisible}
-        onClose={() => setExpenseFormVisible(false)}
-        eventId={null}
-        expense={editingExpense}
-        invalidateKey={["expenses", "general"]}
-      />
-      <ContributionForm
-        visible={contributionFormVisible}
-        onClose={() => setContributionFormVisible(false)}
-        contribution={editingContribution}
+      <BankTransactionForm
+        visible={transactionFormVisible}
+        onClose={() => setTransactionFormVisible(false)}
+        transaction={editingTransaction}
       />
     </View>
-  );
-}
-
-function RecentContributions({ onEdit }: { onEdit: (contribution: Contribution) => void }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const queryClient = useQueryClient();
-  const { data: contributions = [], isError: contributionsIsError } = useQuery({
-    queryKey: ["contributions"],
-    queryFn: () => apiRequest<Contribution[]>("/api/contributions"),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/contributions/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contributions"] });
-      queryClient.invalidateQueries({ queryKey: ["balance"] });
-      queryClient.invalidateQueries({ queryKey: ["reports"] });
-    },
-    onError: (error: any) => Alert.alert("Could not delete contribution", error.message),
-  });
-
-  const confirmDelete = (contribution: Contribution) => {
-    Alert.alert("Delete contribution", `Remove this contribution of ${formatCurrency(contribution.amount)}?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteMutation.mutate(contribution.id) },
-    ]);
-  };
-
-  return (
-    <FlatList
-      data={contributions}
-      keyExtractor={(c) => String(c.id)}
-      renderItem={({ item }) => (
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.cardContent} onPress={() => onEdit(item)}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>{item.note || "Contribution"}</Text>
-              <Text style={styles.cardMeta}>{item.date}</Text>
-            </View>
-            <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
-            <Ionicons name="trash-outline" size={20} color={colors.danger} />
-          </TouchableOpacity>
-        </View>
-      )}
-      ListEmptyComponent={<Text style={styles.emptyText}>{contributionsIsError ? "Could not load contributions." : "No contributions logged yet."}</Text>}
-      contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
-    />
   );
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   balanceCard: { backgroundColor: colors.primary, margin: 16, marginBottom: 0, padding: 20, borderRadius: 12 },
+  balanceRow: { marginBottom: 4 },
   balanceLabel: { color: colors.primarySoft, fontSize: 13 },
-  balanceValue: { color: colors.white, fontSize: 32, fontWeight: "800", marginTop: 4 },
-  balancePending: { color: colors.primarySoft, fontSize: 12, marginTop: 8 },
-  fundRow: { flexDirection: "row", marginHorizontal: 16, marginTop: 12, gap: 8 },
+  balanceValue: { color: colors.white, fontSize: 22, fontWeight: "800", marginTop: 2 },
+  depositStatus: { color: colors.primarySoft, fontSize: 12, marginTop: 12, fontWeight: "600" },
+  fundRow: { flexDirection: "row", marginHorizontal: 16, marginTop: 16, gap: 8 },
   fundButton: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   fundButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   fundButtonText: { color: colors.textSecondary, fontWeight: "700", fontSize: 13 },
