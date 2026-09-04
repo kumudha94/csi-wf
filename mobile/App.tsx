@@ -73,7 +73,7 @@ function TabNavigator() {
           let iconName: keyof typeof Ionicons.glyphMap = "ellipse";
           if (route.name === "Dashboard") iconName = "home";
           else if (route.name === "Events") iconName = "calendar";
-          else if (route.name === "Balance") iconName = "wallet";
+          else if (route.name === "Balance") iconName = "business";
           else if (route.name === "CashFlow") iconName = "cash-outline";
           else if (route.name === "Settings") iconName = "settings";
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -87,7 +87,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Events" component={EventsStackNavigator} options={{ headerShown: false }} />
-      <Tab.Screen name="Balance" component={BalanceScreen} />
+      <Tab.Screen name="Balance" component={BalanceScreen} options={{ tabBarLabel: "BankFlow" }} />
       <Tab.Screen name="CashFlow" component={CashFundPanel} />
       <Tab.Screen name="Settings" component={SettingsStackNavigator} options={{ headerShown: false }} />
     </Tab.Navigator>
