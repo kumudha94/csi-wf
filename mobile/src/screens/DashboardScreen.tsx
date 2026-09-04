@@ -67,7 +67,11 @@ export default function DashboardScreen() {
             <View style={styles.balanceRow}>
               <Text style={styles.balanceLabel}>Bank balance</Text>
               <Text style={styles.balanceValue}>{mask(data.bank.balance)}</Text>
-              <Text style={styles.pendingText}>Pending: {mask(data.bank.pending)}</Text>
+              <Text style={styles.pendingText}>Balance in hand: {mask(data.bank.inHand)}</Text>
+              <Text style={styles.mutedText}>
+                {data.bank.depositStatus.monthLabel} deposit{" "}
+                {data.bank.depositStatus.completed ? "completed" : "pending"}
+              </Text>
             </View>
             <View style={styles.balanceRow}>
               <Text style={styles.balanceLabel}>Cash balance</Text>
