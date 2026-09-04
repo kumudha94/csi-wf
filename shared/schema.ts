@@ -251,7 +251,7 @@ export const cashFundIncome = pgTable("cash_fund_income", {
 });
 export type CashFundIncome = typeof cashFundIncome.$inferSelect;
 
-export const insertCashFundIncomeSchema = z.object({
+const cashFundIncomeShape = z.object({
   type: z.enum(CASH_INCOME_TYPES),
   amount: z.coerce.number().positive("Amount must be greater than 0"),
   date: dateStringSchema,
@@ -259,9 +259,23 @@ export const insertCashFundIncomeSchema = z.object({
   // meaningful when type is "donation", but not validated against type —
   // an empty/omitted name is always valid.
   donorName: z.string().max(150).nullable().optional(),
+  // Doubles as "Reason / Description" for an Offering (required there, see
+  // the refine below) and an optional free-text "Note" for a Donation —
+  // same column, label/requirement just depend on `type`.
   note: z.string().nullable().optional(),
 });
+
+export const insertCashFundIncomeSchema = cashFundIncomeShape.refine(
+  (data) => data.type !== "offering" || (!!data.note && data.note.trim().length > 0),
+  { message: "Reason / description is required for an offering", path: ["note"] }
+);
 export type CashFundIncomeInput = z.infer<typeof insertCashFundIncomeSchema>;
+
+// Used for PATCH -- a partial update doesn't re-validate the offering/note
+// cross-field rule, since the resulting merged record isn't known from a
+// partial payload alone.
+export const updateCashFundIncomeSchema = cashFundIncomeShape.partial();
+export type CashFundIncomeUpdateInput = z.infer<typeof updateCashFundIncomeSchema>;
 
 // ---------- cash_fund_expenses ----------
 export const cashFundExpenses = pgTable("cash_fund_expenses", {

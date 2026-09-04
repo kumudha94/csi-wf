@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { insertCashFundIncomeSchema, type CashFundIncome } from "@shared/schema";
+import { insertCashFundIncomeSchema, updateCashFundIncomeSchema, type CashFundIncome } from "@shared/schema";
 import * as cashFundIncomeStorage from "../storage/cashFundIncome";
 import { wrap } from "../lib/asyncHandler";
 import { fromMoney } from "../lib/money";
@@ -36,7 +36,7 @@ cashFundIncomeRouter.patch(
       res.status(400).json({ error: "Invalid id" });
       return;
     }
-    const data = insertCashFundIncomeSchema.partial().parse(req.body);
+    const data = updateCashFundIncomeSchema.parse(req.body);
     if (Object.keys(data).length === 0) {
       res.status(400).json({ error: "No fields to update" });
       return;

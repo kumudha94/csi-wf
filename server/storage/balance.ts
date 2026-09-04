@@ -11,6 +11,8 @@ export type BalanceInputs = {
   totalEventExpensesPaid: number;
   cashOpeningBalance: number;
   totalCashIncome: number;
+  totalOffering: number;
+  totalDonation: number;
   totalCashExpenses: number;
 };
 
@@ -53,6 +55,18 @@ export async function getBalanceInputs(): Promise<BalanceInputs> {
     .from(cashFundIncome);
   const totalCashIncome = fromMoney(cashIncomeRow.total);
 
+  const [offeringRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
+    .from(cashFundIncome)
+    .where(eq(cashFundIncome.type, "offering"));
+  const totalOffering = fromMoney(offeringRow.total);
+
+  const [donationRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${cashFundIncome.amount}), 0)` })
+    .from(cashFundIncome)
+    .where(eq(cashFundIncome.type, "donation"));
+  const totalDonation = fromMoney(donationRow.total);
+
   const [cashExpenseRow] = await db
     .select({ total: sql<string>`coalesce(sum(${cashFundExpenses.amount}), 0)` })
     .from(cashFundExpenses);
@@ -66,6 +80,8 @@ export async function getBalanceInputs(): Promise<BalanceInputs> {
     totalEventExpensesPaid,
     cashOpeningBalance,
     totalCashIncome,
+    totalOffering,
+    totalDonation,
     totalCashExpenses,
   };
 }

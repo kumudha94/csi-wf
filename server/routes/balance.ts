@@ -45,6 +45,8 @@ balanceRouter.get(
       cashFund: {
         openingBalance: inputs.cashOpeningBalance,
         totalIncome: inputs.totalCashIncome,
+        totalOffering: inputs.totalOffering,
+        totalDonation: inputs.totalDonation,
         totalExpenses: inputs.totalCashExpenses,
         balance: cashBalance,
       },

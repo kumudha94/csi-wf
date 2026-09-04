@@ -7,6 +7,7 @@ import {
   insertContributionSchema,
   collectContributionSchema,
   insertCashFundIncomeSchema,
+  updateCashFundIncomeSchema,
   insertCashFundExpenseSchema,
   insertBankTransactionSchema,
 } from "./schema";
@@ -204,12 +205,27 @@ describe("collectContributionSchema", () => {
 });
 
 describe("insertCashFundIncomeSchema", () => {
-  it("accepts a valid offering entry", () => {
-    const result = insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 350, date: "2026-09-01" });
+  it("accepts a valid offering entry with a reason/description", () => {
+    const result = insertCashFundIncomeSchema.safeParse({
+      type: "offering",
+      amount: 350,
+      date: "2026-09-01",
+      note: "Sunday morning service",
+    });
     expect(result.success).toBe(true);
   });
 
-  it("accepts a donation with a donor name", () => {
+  it("requires a note (reason/description) for an offering", () => {
+    expect(insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 350, date: "2026-09-01" }).success).toBe(
+      false
+    );
+    expect(
+      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 350, date: "2026-09-01", note: "   " })
+        .success
+    ).toBe(false);
+  });
+
+  it("accepts a donation with a donor name and no note", () => {
     const result = insertCashFundIncomeSchema.safeParse({
       type: "donation",
       amount: 1000,
@@ -225,12 +241,18 @@ describe("insertCashFundIncomeSchema", () => {
   });
 
   it("rejects an invalid type", () => {
-    expect(insertCashFundIncomeSchema.safeParse({ type: "tithe", amount: 100, date: "2026-09-01" }).success).toBe(false);
+    expect(
+      insertCashFundIncomeSchema.safeParse({ type: "tithe", amount: 100, date: "2026-09-01", note: "x" }).success
+    ).toBe(false);
   });
 
   it("rejects a zero or negative amount", () => {
-    expect(insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 0, date: "2026-09-01" }).success).toBe(false);
-    expect(insertCashFundIncomeSchema.safeParse({ type: "offering", amount: -5, date: "2026-09-01" }).success).toBe(false);
+    expect(
+      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 0, date: "2026-09-01", note: "x" }).success
+    ).toBe(false);
+    expect(
+      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: -5, date: "2026-09-01", note: "x" }).success
+    ).toBe(false);
   });
 
   it("accepts a donorName at the 150-character limit", () => {
@@ -257,11 +279,24 @@ describe("insertCashFundIncomeSchema", () => {
 
   it("rejects a malformed date", () => {
     expect(
-      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 100, date: "01-09-2026" }).success
+      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 100, date: "01-09-2026", note: "x" }).success
     ).toBe(false);
     expect(
-      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 100, date: "2026-9-1" }).success
+      insertCashFundIncomeSchema.safeParse({ type: "offering", amount: 100, date: "2026-9-1", note: "x" }).success
     ).toBe(false);
+  });
+});
+
+describe("updateCashFundIncomeSchema", () => {
+  it("allows a partial update to just the amount, even for an offering with no note in the payload", () => {
+    // Partial updates don't re-validate the offering/note cross-field rule
+    // -- the merged record isn't known from a partial payload alone.
+    const result = updateCashFundIncomeSchema.safeParse({ amount: 400 });
+    expect(result.success).toBe(true);
+  });
+
+  it("still rejects a non-positive amount when provided", () => {
+    expect(updateCashFundIncomeSchema.safeParse({ amount: 0 }).success).toBe(false);
   });
 });
 
