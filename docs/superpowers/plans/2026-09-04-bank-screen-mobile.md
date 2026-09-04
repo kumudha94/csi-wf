@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rename the Balance tab to Bank and redesign its Bank Fund side around the real deposit → withdraw-to-hand → spend cycle (gradient balance card, Transfers/Contributions tabs), replacing one-at-a-time contribution entry with a fast collect-list flow that handles members paying in irregular multi-month gaps. Cash Fund, the outer fund switcher, and the rest of the tab bar are untouched.
+**Goal:** Rename the Balance tab to Bank and redesign its Bank Fund side around the real deposit → withdraw-to-hand → spend cycle (gradient balance card, Transfers/Contributions tabs), replacing one-at-a-time contribution entry with a fast collect-list flow that handles members paying in irregular multi-month gaps. The Bank Fund/Cash Fund switcher stays in place for now — CashFlow's own redesign already shipped separately (refined Offering/Donation and Expenses forms, `/api/balance` breakdown), but promoting it to its own top-level tab happens together with moving Members/Reports into Settings, as one later nav-reorg phase — not here.
 
 **Architecture:** New `BankTransactionForm` (structurally similar to `ExpenseForm` — reuses its receipt-photo pattern — plus a 3-option transfer-type selector and no status field) and `ContributionCollectForm` (a member list driven by a new `/collection-status` endpoint, replacing `ContributionForm`). `BalanceScreen`'s `BankFundView` sub-component is rewritten to show the new gradient card and mount these two. The outer Bank Fund/Cash Fund switcher and `CashFundPanel` are untouched. `App.tsx`'s tab label/icon changes from Balance to Bank. `DashboardScreen`'s Account details card is updated to match the new Bank Balance/Balance-in-Hand shape.
 
@@ -19,7 +19,7 @@
 - Every mutation invalidates `["balance"]` and `["reports"]` on success, alongside its own resource's query key.
 - Currency formatting always goes through `formatCurrency()` from `mobile/src/lib/format.ts`; dates always through `todayString()`/`dateToString()`.
 - Every screen/component reads colors via `useTheme()` and builds its `StyleSheet` with `useMemo(() => createStyles(colors), [colors])` — never hardcoded colors.
-- The Bank Fund/Cash Fund switcher inside `BalanceScreen.tsx`, and `CashFundPanel.tsx` behind it, are **not touched** by this plan — Cash Fund redesign is a separate future phase.
+- The Bank Fund/Cash Fund switcher inside `BalanceScreen.tsx`, and `CashFundPanel.tsx` behind it, are **not touched** by this plan. CashFlow's own redesign already shipped (separately from this plan); what's still pending is promoting it out from behind this switcher into its own top-level tab, which happens together with moving Members and Reports into Settings and landing the final tab order (Dashboard → Events → Bank → CashFlow → Settings) — one later nav-reorg phase, not this one.
 - `ContributionForm.tsx` is deleted once nothing imports it any more (Task 4) — its replacement is `ContributionCollectForm.tsx`.
 
 ---
@@ -930,7 +930,7 @@ With the backend from the paired backend plan running and `EXPO_PUBLIC_API_URL` 
 - Confirm the Bank Fund side shows the gradient card (Bank Balance, Balance in Hand, deposit status) and defaults to the Transfers tab.
 - Add a deposit, a withdrawal, and a cash expense via "+ Add Transfer" — confirm the balance card updates correctly after each, and each shows up in the Transfers list; edit one, delete one.
 - Switch to the Contributions tab — confirm the summary card and member list render from `/collection-status`; tap Add on an unpaid member, confirm it posts and the row flips to "Paid"; tap a paid row, confirm the edit modal opens pre-filled, save a change, confirm it persists.
-- Switch to Cash Fund — confirm it's unchanged from before this plan.
+- Switch to Cash Fund — confirm it still renders `CashFundPanel` as before; this plan doesn't touch it (its own redesign shipped separately, ahead of this plan).
 
 - [ ] **Step 6: Commit**
 
