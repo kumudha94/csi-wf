@@ -140,6 +140,11 @@ function drawLedgerTable(doc: PDFKit.PDFDocument, rows: LedgerRow[]) {
       x += LEDGER_COLUMNS[i].width;
     }
     doc.font("Helvetica");
+    // Each cell above is drawn at an explicit x, which leaves PDFKit's cursor
+    // sitting at the last (rightmost) column -- reset it back to the table's
+    // left edge so any later unpositioned doc.text() call (a heading drawn
+    // after this table, e.g.) doesn't inherit a stray rightward offset.
+    doc.x = startX;
     doc.y = y + rowHeight + 4;
   }
 
@@ -159,7 +164,8 @@ function drawLedgerTable(doc: PDFKit.PDFDocument, rows: LedgerRow[]) {
   drawHeader();
 
   if (rows.length === 0) {
-    doc.text("None in this period.");
+    doc.text("None in this period.", startX, doc.y);
+    doc.x = startX;
     return;
   }
 
