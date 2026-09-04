@@ -90,6 +90,7 @@ export default function BalanceScreen() {
 
       {tab === "transfers" ? (
         <FlatList
+          style={{ flex: 1 }}
           data={transactions}
           keyExtractor={(t) => String(t.id)}
           renderItem={({ item }) => (

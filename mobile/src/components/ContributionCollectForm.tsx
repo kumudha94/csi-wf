@@ -104,6 +104,7 @@ export default function ContributionCollectForm() {
       {isError ? <Text style={styles.errorText}>Could not load contribution status.</Text> : null}
 
       <FlatList
+        style={{ flex: 1 }}
         data={filtered}
         keyExtractor={(m) => String(m.memberId)}
         renderItem={({ item }) => (
