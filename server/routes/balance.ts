@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { wrap } from "../lib/asyncHandler";
 import { getBalanceInputs } from "../storage/balance";
+import { hasDepositInRange } from "../storage/bankTransactions";
 import { computeBalance } from "../lib/balance";
+import { getDepositWindow, getMonthLabel } from "../lib/dateRange";
 
 export const balanceRouter = Router();
 
@@ -12,25 +14,33 @@ balanceRouter.get(
 
     const bankBalance = computeBalance({
       openingBalance: inputs.bankOpeningBalance,
-      totalContributions: inputs.totalContributions,
-      totalPaidExpenses: inputs.totalPaidExpenses,
+      totalContributions: inputs.totalDeposits,
+      totalPaidExpenses: inputs.totalWithdrawals,
     });
-    // Cash Fund has no pending-expense concept, so this reuses the exact
-    // same formula shape with cash income/expenses in place of
-    // contributions/paid-expenses.
+    const balanceInHand = computeBalance({
+      openingBalance: 0,
+      totalContributions: inputs.totalWithdrawals,
+      totalPaidExpenses: inputs.totalCashExpenseFromHand + inputs.totalEventExpensesPaid,
+    });
+    // Cash Fund is unchanged by this plan -- same formula shape as before.
     const cashBalance = computeBalance({
       openingBalance: inputs.cashOpeningBalance,
       totalContributions: inputs.totalCashIncome,
       totalPaidExpenses: inputs.totalCashExpenses,
     });
 
+    const now = new Date();
+    const depositWindow = getDepositWindow(now);
+    const depositCompleted = await hasDepositInRange(depositWindow.from, depositWindow.to);
+
     res.json({
       bankFund: {
         openingBalance: inputs.bankOpeningBalance,
-        totalContributions: inputs.totalContributions,
-        totalPaidExpenses: inputs.totalPaidExpenses,
-        totalPendingExpenses: inputs.totalPendingExpenses,
+        totalDeposits: inputs.totalDeposits,
+        totalWithdrawals: inputs.totalWithdrawals,
         balance: bankBalance,
+        balanceInHand,
+        depositStatus: { monthLabel: getMonthLabel(now), completed: depositCompleted },
       },
       cashFund: {
         openingBalance: inputs.cashOpeningBalance,
@@ -41,3 +51,4 @@ balanceRouter.get(
     });
   })
 );
+
