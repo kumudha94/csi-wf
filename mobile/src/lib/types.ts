@@ -71,8 +71,33 @@ export type Contribution = {
   memberId: number;
   amount: number;
   date: string;
+  forMonth: string;
   note: string | null;
   createdAt: string;
+};
+
+export type BankTransactionType = "deposit" | "withdrawal" | "cash_expense";
+
+export type BankTransaction = {
+  id: number;
+  type: BankTransactionType;
+  description: string;
+  amount: number;
+  date: string;
+  receiptPhotoUrl: string | null;
+  createdAt: string;
+};
+
+export type MemberCollectionStatus = {
+  memberId: number;
+  name: string;
+  santhaNumber: string;
+  defaultAmount: number;
+  paidThisMonth: boolean;
+  currentMonthContributionId: number | null;
+  currentMonthAmount: number | null;
+  currentMonthDate: string | null;
+  missingMonths: string[];
 };
 
 export type CashIncomeType = "offering" | "donation";
@@ -97,10 +122,11 @@ export type CashFundExpense = {
 
 export type BankFundBalance = {
   openingBalance: number;
-  totalContributions: number;
-  totalPaidExpenses: number;
-  totalPendingExpenses: number;
+  totalDeposits: number;
+  totalWithdrawals: number;
   balance: number;
+  balanceInHand: number;
+  depositStatus: { monthLabel: string; completed: boolean };
 };
 
 export type CashFundBalanceSummary = {
@@ -160,7 +186,7 @@ export type ReportCashFund = {
 export type DashboardSummary = {
   monthLabel: string;
   weekOfMonth: number;
-  bank: { balance: number; pending: number };
+  bank: { balance: number; inHand: number; depositStatus: { monthLabel: string; completed: boolean } };
   cash: { balance: number };
   members: { total: number; active: number; inactive: number; died: number; newThisMonth: number };
   contributions: { thisMonth: number; thisWeek: number; total: number };
