@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Image, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import * as ImagePicker from "expo-image-picker";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { apiRequest } from "../lib/api";
+import { apiRequest, uploadReceipt } from "../lib/api";
 import type { CashFundExpense } from "../lib/types";
-import { todayString, dateToString } from "../lib/format";
+import { todayString, dateToString, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -21,6 +22,9 @@ export default function CashExpenseForm({ visible, onClose, expense }: Props) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayString());
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
@@ -28,6 +32,8 @@ export default function CashExpenseForm({ visible, onClose, expense }: Props) {
       setDescription(expense?.description || "");
       setAmount(expense ? String(expense.amount) : "");
       setDate(expense?.date || todayString());
+      setReceiptUri(null);
+      setReceiptUrl(expense?.receiptPhotoUrl || null);
     }
   }, [visible, expense]);
 
@@ -38,9 +44,30 @@ export default function CashExpenseForm({ visible, onClose, expense }: Props) {
     }
   };
 
+  const removeReceipt = () => {
+    setReceiptUri(null);
+    setReceiptUrl(null);
+  };
+
+  const pickReceipt = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets[0]) return;
+    setReceiptUri(result.assets[0].uri);
+    setIsUploading(true);
+    try {
+      const url = await uploadReceipt(result.assets[0].uri);
+      setReceiptUrl(url);
+    } catch (error: any) {
+      Alert.alert("Upload failed", error.message || "Could not upload the receipt photo");
+      setReceiptUri(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const saveMutation = useMutation({
     mutationFn: () => {
-      const payload = { description: description.trim(), amount: parseFloat(amount), date };
+      const payload = { description: description.trim(), amount: parseFloat(amount), date, receiptPhotoUrl: receiptUrl };
       if (isEditing) {
         return apiRequest(`/api/cash-fund-expenses/${expense!.id}`, { method: "PATCH", body: JSON.stringify(payload) });
       }
@@ -84,7 +111,7 @@ export default function CashExpenseForm({ visible, onClose, expense }: Props) {
           <Text style={styles.label}>Date</Text>
           <View style={styles.dateRow}>
             <TouchableOpacity style={[styles.input, { flex: 1 }]} onPress={() => setShowDatePicker(true)}>
-              <Text style={{ color: colors.textPrimary }}>{date}</Text>
+              <Text style={{ color: colors.textPrimary }}>{formatDisplayDate(date)}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
               <Ionicons name="calendar-outline" size={20} color={colors.textPrimary} />
@@ -94,11 +121,24 @@ export default function CashExpenseForm({ visible, onClose, expense }: Props) {
             <DateTimePicker value={new Date(`${date}T00:00:00`)} mode="date" display="default" onChange={handleDateChange} />
           )}
 
+          <Text style={styles.label}>Receipt photo</Text>
+          {receiptUri || receiptUrl ? (
+            <View style={styles.receiptPreviewRow}>
+              <Image source={{ uri: receiptUri || receiptUrl! }} style={styles.receiptPreview} />
+              <TouchableOpacity style={styles.removeReceiptButton} onPress={removeReceipt} disabled={isUploading}>
+                <Text style={styles.removeReceiptButtonText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          <TouchableOpacity style={styles.photoButton} onPress={pickReceipt} disabled={isUploading}>
+            <Text style={styles.photoButtonText}>{isUploading ? "Uploading..." : "Choose Photo"}</Text>
+          </TouchableOpacity>
+
           <View style={styles.row}>
             <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={onClose}>
               <Text style={styles.secondaryButtonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={saveMutation.isPending}>
+            <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={saveMutation.isPending || isUploading}>
               <Text style={styles.buttonText}>{saveMutation.isPending ? "Saving..." : "Save"}</Text>
             </TouchableOpacity>
           </View>
@@ -124,6 +164,26 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.surface,
   },
+  receiptPreviewRow: { flexDirection: "row", alignItems: "flex-end", gap: 12, marginBottom: 10 },
+  receiptPreview: { width: 120, height: 120, borderRadius: 8 },
+  removeReceiptButton: {
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  removeReceiptButtonText: { color: colors.danger, fontWeight: "600" },
+  photoButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+  },
+  photoButtonText: { color: colors.textSecondary, fontWeight: "600" },
   row: { flexDirection: "row", gap: 12, marginTop: 28 },
   button: { flex: 1, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
   buttonText: { color: colors.white, fontSize: 15, fontWeight: "600" },

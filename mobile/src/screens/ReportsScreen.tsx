@@ -7,7 +7,7 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { apiRequest, API_BASE_URL } from "../lib/api";
 import { getToken } from "../lib/authStorage";
 import type { ReportResponse } from "../lib/types";
-import { formatCurrency, todayString, dateToString, isValidDateString } from "../lib/format";
+import { formatCurrency, todayString, dateToString, isValidDateString, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -76,7 +76,7 @@ export default function ReportsScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>From</Text>
           <TouchableOpacity style={styles.input} onPress={() => setShowFromPicker(true)}>
-            <Text style={{ color: colors.textPrimary }}>{from}</Text>
+            <Text style={{ color: colors.textPrimary }}>{formatDisplayDate(from)}</Text>
           </TouchableOpacity>
           {showFromPicker && (
             <DateTimePicker value={new Date(`${from}T00:00:00`)} mode="date" display="default" onChange={handleFromChange} />
@@ -85,7 +85,7 @@ export default function ReportsScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>To</Text>
           <TouchableOpacity style={styles.input} onPress={() => setShowToPicker(true)}>
-            <Text style={{ color: colors.textPrimary }}>{to}</Text>
+            <Text style={{ color: colors.textPrimary }}>{formatDisplayDate(to)}</Text>
           </TouchableOpacity>
           {showToPicker && (
             <DateTimePicker value={new Date(`${to}T00:00:00`)} mode="date" display="default" onChange={handleToChange} />
@@ -140,7 +140,7 @@ export default function ReportsScreen() {
                   [{e.eventName ?? "General"}] {e.description}
                 </Text>
                 <Text style={styles.listRowMeta}>
-                  {e.date} · {formatCurrency(e.amount)} · {e.status}
+                  {formatDisplayDate(e.date)} · {formatCurrency(e.amount)} · {e.status}
                 </Text>
               </View>
             ))
@@ -154,7 +154,7 @@ export default function ReportsScreen() {
               <View key={i} style={styles.listRow}>
                 <Text style={styles.listRowTitle}>{c.memberName}</Text>
                 <Text style={styles.listRowMeta}>
-                  {c.date} · {formatCurrency(c.amount)}
+                  {formatDisplayDate(c.date)} · {formatCurrency(c.amount)}
                   {c.note ? ` · ${c.note}` : ""}
                 </Text>
               </View>
@@ -173,7 +173,7 @@ export default function ReportsScreen() {
                       {i.type === "donation" ? i.donorName || "Donation" : "Offering"}
                     </Text>
                     <Text style={styles.listRowMeta}>
-                      {i.date} · {formatCurrency(i.amount)}
+                      {formatDisplayDate(i.date)} · {formatCurrency(i.amount)}
                       {i.note ? ` · ${i.note}` : ""}
                     </Text>
                   </View>
@@ -188,7 +188,7 @@ export default function ReportsScreen() {
                   <View key={idx} style={styles.listRow}>
                     <Text style={styles.listRowTitle}>{e.description}</Text>
                     <Text style={styles.listRowMeta}>
-                      {e.date} · {formatCurrency(e.amount)}
+                      {formatDisplayDate(e.date)} · {formatCurrency(e.amount)}
                     </Text>
                   </View>
                 ))

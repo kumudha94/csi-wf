@@ -120,6 +120,7 @@ export type CashFundExpense = {
   description: string;
   amount: number;
   date: string;
+  receiptPhotoUrl: string | null;
   createdAt: string;
 };
 

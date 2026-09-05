@@ -14,4 +14,6 @@
 
 ## Bank
 
-1. New menu needs to added.
+1. New menu needs to added. Refer Bank-Sample.png image for reference. This might be the big change. This menu contains two tabs under main card.
+2. Transfer tab: choosing Transfer tab shows the list of transactions that happened with the amount taken and depositted to the bank. so credit and debit will be there.
+3. Contribution tab: Adding contribution for a 

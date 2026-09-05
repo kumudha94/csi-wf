@@ -1,6 +1,157 @@
 import PDFDocument from "pdfkit";
 import { fromMoney } from "./money";
 
+// ---------- shared brand chrome ----------
+// Matches the mobile app's own palette (mobile/src/theme.ts lightColors) so
+// exported PDFs feel like the same product, not a bolted-on report tool.
+const COLORS = {
+  primary: "#6D28D9",
+  primaryDark: "#4C1D95",
+  primarySoft: "#EDE4FA",
+  textPrimary: "#221D17",
+  textSecondary: "#7A7168",
+  textMuted: "#AFA598",
+  border: "#E5DED1",
+  success: "#3F8F5D",
+  danger: "#C4432E",
+  white: "#FFFFFF",
+  headerSubtext: "#E4D9FA",
+};
+
+const PAGE_MARGIN = 40;
+const HEADER_HEIGHT = 74;
+const FOOTER_HEIGHT = 34;
+const FRAME_X = 16;
+
+function frameTop(): number {
+  return HEADER_HEIGHT + 4 + 8;
+}
+function frameBottom(doc: PDFKit.PDFDocument): number {
+  return doc.page.height - FOOTER_HEIGHT - 8;
+}
+
+// Branded header band + title/period + a colored border framing the body
+// content area. Drawn once for the first page, then again automatically on
+// every page PDFKit adds (e.g. when a ledger table overflows), via the
+// "pageAdded" listener each generator registers.
+function drawPageChrome(doc: PDFKit.PDFDocument, title: string, period: string) {
+  const pageWidth = doc.page.width;
+
+  doc.rect(0, 0, pageWidth, HEADER_HEIGHT).fill(COLORS.primary);
+  doc.rect(0, HEADER_HEIGHT, pageWidth, 4).fill(COLORS.primaryDark);
+
+  doc.fillColor(COLORS.white).font("Helvetica-Bold").fontSize(17);
+  doc.text("CSI Women's Fellowship", PAGE_MARGIN, 15, { width: pageWidth - PAGE_MARGIN * 2 });
+  doc.font("Helvetica-Bold").fontSize(10).text(title, PAGE_MARGIN, 37, { width: pageWidth - PAGE_MARGIN * 2 });
+  doc.font("Helvetica").fontSize(8.5).fillColor(COLORS.headerSubtext);
+  doc.text(period, PAGE_MARGIN, 53, { width: pageWidth - PAGE_MARGIN * 2 });
+
+  doc
+    .rect(FRAME_X, frameTop(), pageWidth - FRAME_X * 2, frameBottom(doc) - frameTop())
+    .lineWidth(1.2)
+    .strokeColor(COLORS.primary)
+    .stroke();
+
+  doc.fillColor(COLORS.textPrimary).font("Helvetica").fontSize(11);
+  doc.x = PAGE_MARGIN;
+  doc.y = frameTop() + 14;
+}
+
+// Registers the repeating chrome and draws it for page 1 (PDFKit's
+// "pageAdded" event only fires for pages added *after* the first).
+function startDocument(doc: PDFKit.PDFDocument, title: string, period: string) {
+  doc.on("pageAdded", () => drawPageChrome(doc, title, period));
+  drawPageChrome(doc, title, period);
+}
+
+// Applies "Page X of Y" + a footer band to every page, using PDFKit's
+// buffered-page API -- must run once, right before doc.end(), after all
+// content (so the total page count is known).
+function drawFooters(doc: PDFKit.PDFDocument) {
+  const range = doc.bufferedPageRange();
+  const pageWidth = doc.page.width;
+  for (let i = range.start; i < range.start + range.count; i++) {
+    doc.switchToPage(i);
+    // PDFKit auto-adds a page when text() would land inside page.margins.bottom,
+    // regardless of lineBreak -- and the footer band lives entirely in that zone.
+    // Safe to zero out here since nothing else is drawn on these pages afterward.
+    doc.page.margins.bottom = 0;
+    const y = doc.page.height - FOOTER_HEIGHT;
+    doc.rect(0, y, pageWidth, FOOTER_HEIGHT).fill(COLORS.primarySoft);
+    doc.moveTo(0, y).lineTo(pageWidth, y).lineWidth(1.5).strokeColor(COLORS.primary).stroke();
+
+    doc.font("Helvetica").fontSize(8).fillColor(COLORS.textSecondary);
+    doc.text("CSI Women's Fellowship — Treasurer App", PAGE_MARGIN, y + 12, {
+      width: pageWidth / 2,
+      align: "left",
+      lineBreak: false,
+    });
+    doc.font("Helvetica-Bold").fillColor(COLORS.primaryDark);
+    doc.text(`Page ${i - range.start + 1} of ${range.count}`, pageWidth / 2, y + 12, {
+      width: pageWidth / 2 - PAGE_MARGIN,
+      align: "right",
+      lineBreak: false,
+    });
+  }
+  doc.fillColor(COLORS.textPrimary).font("Helvetica");
+}
+
+type SummaryRow = { label: string; value: string; emphasis?: boolean };
+
+// A soft-purple, bordered card for the opening/closing-balance summary at
+// the top of each section -- replaces the old plain stacked text lines.
+function drawSummaryCard(doc: PDFKit.PDFDocument, title: string, rows: SummaryRow[]) {
+  const pageWidth = doc.page.width;
+  const cardX = PAGE_MARGIN;
+  const cardWidth = pageWidth - PAGE_MARGIN * 2;
+  const padding = 12;
+  const rowHeight = 17;
+  const titleHeight = 20;
+  const cardTop = doc.y;
+  const cardHeight = titleHeight + rows.length * rowHeight + padding * 2 - 4;
+
+  if (cardTop + cardHeight > frameBottom(doc)) {
+    doc.addPage();
+  }
+  const y = doc.y;
+
+  doc.roundedRect(cardX, y, cardWidth, cardHeight, 6).fill(COLORS.primarySoft);
+  doc.roundedRect(cardX, y, cardWidth, cardHeight, 6).lineWidth(1).strokeColor(COLORS.primary).stroke();
+
+  doc.fillColor(COLORS.primaryDark).font("Helvetica-Bold").fontSize(12);
+  doc.text(title, cardX + padding, y + padding - 2, { width: cardWidth - padding * 2 });
+
+  let rowY = y + padding + titleHeight - 4;
+  const half = cardWidth / 2;
+  for (const row of rows) {
+    doc.fontSize(10);
+    doc.font(row.emphasis ? "Helvetica-Bold" : "Helvetica");
+    doc.fillColor(row.emphasis ? COLORS.primaryDark : COLORS.textSecondary);
+    doc.text(row.label, cardX + padding, rowY, { width: half, align: "left" });
+    doc.fillColor(row.emphasis ? COLORS.primaryDark : COLORS.textPrimary);
+    doc.text(row.value, cardX + half, rowY, { width: half - padding, align: "right" });
+    rowY += rowHeight;
+  }
+
+  doc.fillColor(COLORS.textPrimary).font("Helvetica").fontSize(11);
+  doc.x = PAGE_MARGIN;
+  doc.y = y + cardHeight + 16;
+}
+
+function money(value: number): string {
+  return `Rs. ${value.toFixed(2)}`;
+}
+
+// Converts an internal "YYYY-MM-DD" date string to the display format
+// "DD-MM-YYYY". Ledger rows keep the ISO string for sorting/balance math —
+// this only runs at render time, right before a date reaches the page.
+function formatDisplayDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return value;
+  const [, yyyy, mm, dd] = match;
+  return `${dd}-${mm}-${yyyy}`;
+}
+
 export type ReportPdfData = {
   from: string;
   to: string;
@@ -115,161 +266,168 @@ export function buildCashLedgerRows(data: ReportPdfData["cashFund"]): LedgerRow[
 }
 
 const LEDGER_COLUMNS: { label: string; width: number; align: "left" | "right" }[] = [
-  { label: "Date", width: 65, align: "left" },
-  { label: "Description", width: 180, align: "left" },
-  { label: "Credit", width: 65, align: "right" },
-  { label: "Debit", width: 65, align: "right" },
-  { label: "Status", width: 65, align: "left" },
-  { label: "Balance", width: 92, align: "right" },
+  { label: "Date", width: 62, align: "left" },
+  { label: "Description", width: 172, align: "left" },
+  { label: "Credit", width: 62, align: "right" },
+  { label: "Debit", width: 62, align: "right" },
+  { label: "Status", width: 62, align: "left" },
+  { label: "Balance", width: 88, align: "right" },
 ];
 
+// Colorful, zebra-striped cash-book ledger: a filled purple header row,
+// alternating row backgrounds, green credits, red debits, and a balance
+// column colored by sign -- replaces the old plain black-on-white table.
 function drawLedgerTable(doc: PDFKit.PDFDocument, rows: LedgerRow[]) {
-  const startX = doc.page.margins.left;
+  const startX = PAGE_MARGIN;
   const tableWidth = LEDGER_COLUMNS.reduce((sum, col) => sum + col.width, 0);
-  const bottomLimit = doc.page.height - doc.page.margins.bottom;
-  const GUTTER = 8; // gap reserved at the right of each column so adjacent text never touches
+  const bottomLimit = frameBottom(doc);
+  const CELL_PAD = 6;
+  const HEADER_ROW_HEIGHT = 20;
 
-  function drawRowCells(values: string[], font: "Helvetica" | "Helvetica-Bold") {
-    doc.font(font);
+  function drawHeaderRow() {
     const y = doc.y;
-    const heights = values.map((v, i) => doc.heightOfString(v, { width: LEDGER_COLUMNS[i].width - GUTTER }));
-    const rowHeight = Math.max(...heights, 12);
+    doc.rect(startX, y, tableWidth, HEADER_ROW_HEIGHT).fill(COLORS.primary);
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(COLORS.white);
+    let x = startX;
+    for (const col of LEDGER_COLUMNS) {
+      doc.text(col.label, x + CELL_PAD, y + 6, { width: col.width - CELL_PAD * 2, align: col.align });
+      x += col.width;
+    }
+    doc.fillColor(COLORS.textPrimary).font("Helvetica");
+    doc.x = startX;
+    doc.y = y + HEADER_ROW_HEIGHT;
+  }
+
+  function drawDataRow(row: LedgerRow, rowIndex: number) {
+    const values = [
+      formatDisplayDate(row.date),
+      row.description,
+      row.credit > 0 ? row.credit.toFixed(2) : "",
+      row.debit > 0 ? row.debit.toFixed(2) : "",
+      row.status,
+      row.balance.toFixed(2),
+    ];
+    const y = doc.y;
+    doc.fontSize(9);
+    const heights = values.map((v, i) => doc.heightOfString(v, { width: LEDGER_COLUMNS[i].width - CELL_PAD * 2 }));
+    const rowHeight = Math.max(...heights, 11) + 8;
+
+    if (rowIndex % 2 === 1) {
+      doc.rect(startX, y, tableWidth, rowHeight).fill(COLORS.primarySoft);
+    }
+
     let x = startX;
     for (let i = 0; i < LEDGER_COLUMNS.length; i++) {
-      doc.text(values[i], x, y, { width: LEDGER_COLUMNS[i].width - GUTTER, align: LEDGER_COLUMNS[i].align });
+      let color: string = COLORS.textPrimary;
+      let bold = false;
+      if (i === 2 && values[i]) color = COLORS.success;
+      else if (i === 3 && values[i]) color = COLORS.danger;
+      else if (i === 5) {
+        bold = true;
+        color = row.balance < 0 ? COLORS.danger : COLORS.textPrimary;
+      }
+      doc.fillColor(color).font(bold ? "Helvetica-Bold" : "Helvetica");
+      doc.text(values[i], x + CELL_PAD, y + 4, { width: LEDGER_COLUMNS[i].width - CELL_PAD * 2, align: LEDGER_COLUMNS[i].align });
       x += LEDGER_COLUMNS[i].width;
     }
-    doc.font("Helvetica");
-    // Each cell above is drawn at an explicit x, which leaves PDFKit's cursor
-    // sitting at the last (rightmost) column -- reset it back to the table's
-    // left edge so any later unpositioned doc.text() call (a heading drawn
-    // after this table, e.g.) doesn't inherit a stray rightward offset.
+
+    doc.fillColor(COLORS.textPrimary).font("Helvetica");
     doc.x = startX;
-    doc.y = y + rowHeight + 4;
+    doc.y = y + rowHeight;
+
+    doc.moveTo(startX, doc.y).lineTo(startX + tableWidth, doc.y).lineWidth(0.5).strokeColor(COLORS.border).stroke();
   }
 
-  function drawHeader() {
-    drawRowCells(
-      LEDGER_COLUMNS.map((c) => c.label),
-      "Helvetica-Bold"
-    );
-    doc.moveTo(startX, doc.y).lineTo(startX + tableWidth, doc.y).stroke();
-    doc.moveDown(0.4);
-  }
-
-  if (doc.y > bottomLimit - 40) {
+  if (doc.y + HEADER_ROW_HEIGHT + 24 > bottomLimit) {
     doc.addPage();
-    doc.y = doc.page.margins.top;
   }
-  drawHeader();
+  drawHeaderRow();
 
   if (rows.length === 0) {
-    doc.text("None in this period.", startX, doc.y);
+    doc.fillColor(COLORS.textMuted).fontSize(9).text("None in this period.", startX + CELL_PAD, doc.y + 6);
+    doc.fillColor(COLORS.textPrimary);
     doc.x = startX;
+    doc.y += 20;
     return;
   }
 
-  for (const row of rows) {
-    if (doc.y > bottomLimit - 20) {
+  rows.forEach((row, index) => {
+    if (doc.y > bottomLimit - 24) {
       doc.addPage();
-      doc.y = doc.page.margins.top;
-      drawHeader();
+      drawHeaderRow();
     }
-    drawRowCells(
-      [
-        row.date,
-        row.description,
-        row.credit > 0 ? row.credit.toFixed(2) : "",
-        row.debit > 0 ? row.debit.toFixed(2) : "",
-        row.status,
-        row.balance.toFixed(2),
-      ],
-      "Helvetica"
-    );
-  }
+    drawDataRow(row, index);
+  });
 }
 
 export function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40 });
+    const doc = new PDFDocument({ margin: PAGE_MARGIN, bufferPages: true });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(18).text("CSI Women's Fellowship", { align: "center" });
-    doc.moveDown(0.5);
-    doc.fontSize(11).text(`Period: ${data.from} to ${data.to}`, { align: "center" });
-    doc.moveDown(1.5);
+    startDocument(doc, "Combined Treasurer Report", `Period: ${formatDisplayDate(data.from)} to ${formatDisplayDate(data.to)}`);
 
-    doc.fontSize(13).text("Summary");
-    doc.fontSize(11);
-    doc.text(`Opening balance: Rs. ${data.openingBalance.toFixed(2)}`);
-    doc.text(`Contributions received: Rs. ${data.totalContributions.toFixed(2)}`);
-    doc.text(`Expenses paid: Rs. ${data.totalPaidExpenses.toFixed(2)}`);
-    doc.text(`Expenses pending: Rs. ${data.totalPendingExpenses.toFixed(2)}`);
-    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.closingBalance.toFixed(2)}`);
-    doc.font("Helvetica");
-    doc.moveDown(1.5);
+    drawSummaryCard(doc, "Bank Fund Summary", [
+      { label: "Opening balance", value: money(data.openingBalance) },
+      { label: "Contributions received", value: money(data.totalContributions) },
+      { label: "Expenses paid", value: money(data.totalPaidExpenses) },
+      { label: "Expenses pending", value: money(data.totalPendingExpenses) },
+      { label: "Closing balance", value: money(data.closingBalance), emphasis: true },
+    ]);
 
-    doc.fontSize(13).text("Contributions & Expenses");
-    doc.moveDown(0.3);
-    doc.fontSize(9);
+    doc.font("Helvetica-Bold").fontSize(12).fillColor(COLORS.primaryDark).text("Contributions & Expenses");
+    doc.fillColor(COLORS.textPrimary).font("Helvetica").moveDown(0.4);
     drawLedgerTable(doc, buildLedgerRows(data));
 
-    doc.fontSize(11);
-    doc.moveDown(1.5);
-    doc.fontSize(13).text("Cash Fund (Offering & Donation)");
-    doc.fontSize(11);
-    doc.text(`Opening balance: Rs. ${data.cashFund.openingBalance.toFixed(2)}`);
-    doc.text(`Offering received: Rs. ${data.cashFund.totalOffering.toFixed(2)}`);
-    doc.text(`Donations received: Rs. ${data.cashFund.totalDonation.toFixed(2)}`);
-    doc.text(`Expenses: Rs. ${data.cashFund.totalExpenses.toFixed(2)}`);
-    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.cashFund.closingBalance.toFixed(2)}`);
-    doc.font("Helvetica");
-    doc.moveDown(1);
-    doc.fontSize(9);
+    doc.moveDown(1.2);
+    drawSummaryCard(doc, "Cash Fund Summary", [
+      { label: "Opening balance", value: money(data.cashFund.openingBalance) },
+      { label: "Offering received", value: money(data.cashFund.totalOffering) },
+      { label: "Donations received", value: money(data.cashFund.totalDonation) },
+      { label: "Expenses", value: money(data.cashFund.totalExpenses) },
+      { label: "Closing balance", value: money(data.cashFund.closingBalance), emphasis: true },
+    ]);
+
+    doc.font("Helvetica-Bold").fontSize(12).fillColor(COLORS.primaryDark).text("Offering, Donations & Expenses");
+    doc.fillColor(COLORS.textPrimary).font("Helvetica").moveDown(0.4);
     drawLedgerTable(doc, buildCashLedgerRows(data.cashFund));
 
+    drawFooters(doc);
     doc.end();
   });
 }
 
 export type CashFundReportPdfData = ReportPdfData["cashFund"] & { from: string; to: string };
 
-// Standalone Cash-Fund-only report, for the Report icon on the CashFlow
-// screen's gradient card (and, later, the equivalent Bank-Fund-only report
-// for BankFlow's icon) -- reuses the same ledger builder/table renderer as
-// the combined report's Cash Fund section, just as its own document rather
-// than a section within generateReportPdf's output.
+// Standalone Cash-Fund-only report -- backs the Report icon on the CashFlow
+// screen's gradient card. Reuses the same ledger builder/table renderer as
+// the combined report's Cash Fund section, just as its own document.
 export function generateCashFundReportPdf(data: CashFundReportPdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40 });
+    const doc = new PDFDocument({ margin: PAGE_MARGIN, bufferPages: true });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(18).text("CSI Women's Fellowship - Cash Fund Report", { align: "center" });
-    doc.moveDown(0.5);
-    doc.fontSize(11).text(`Period: ${data.from} to ${data.to}`, { align: "center" });
-    doc.moveDown(1.5);
+    startDocument(doc, "Cash Fund Report", `Period: ${formatDisplayDate(data.from)} to ${formatDisplayDate(data.to)}`);
 
-    doc.fontSize(13).text("Summary");
-    doc.fontSize(11);
-    doc.text(`Opening balance: Rs. ${data.openingBalance.toFixed(2)}`);
-    doc.text(`Offering received: Rs. ${data.totalOffering.toFixed(2)}`);
-    doc.text(`Donations received: Rs. ${data.totalDonation.toFixed(2)}`);
-    doc.text(`Expenses: Rs. ${data.totalExpenses.toFixed(2)}`);
-    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.closingBalance.toFixed(2)}`);
-    doc.font("Helvetica");
-    doc.moveDown(1.5);
+    drawSummaryCard(doc, "Summary", [
+      { label: "Opening balance", value: money(data.openingBalance) },
+      { label: "Offering received", value: money(data.totalOffering) },
+      { label: "Donations received", value: money(data.totalDonation) },
+      { label: "Expenses", value: money(data.totalExpenses) },
+      { label: "Closing balance", value: money(data.closingBalance), emphasis: true },
+    ]);
 
-    doc.fontSize(13).text("Offering, Donations & Expenses");
-    doc.moveDown(0.3);
-    doc.fontSize(9);
+    doc.font("Helvetica-Bold").fontSize(12).fillColor(COLORS.primaryDark).text("Offering, Donations & Expenses");
+    doc.fillColor(COLORS.textPrimary).font("Helvetica").moveDown(0.4);
     drawLedgerTable(doc, buildCashLedgerRows(data));
 
+    drawFooters(doc);
     doc.end();
   });
 }
@@ -365,41 +523,32 @@ function buildHandLedgerRows(data: BankFundReportPdfData): LedgerRow[] {
 // for events), unlike Cash Fund's single balance.
 export function generateBankFundReportPdf(data: BankFundReportPdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40 });
+    const doc = new PDFDocument({ margin: PAGE_MARGIN, bufferPages: true });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(18).text("CSI Women's Fellowship - Bank Fund Report", { align: "center" });
-    doc.moveDown(0.5);
-    doc.fontSize(11).text(`Period: ${data.from} to ${data.to}`, { align: "center" });
-    doc.moveDown(1.5);
+    startDocument(doc, "Bank Fund Report", `Period: ${formatDisplayDate(data.from)} to ${formatDisplayDate(data.to)}`);
 
-    doc.fontSize(13).text("Bank Balance");
-    doc.fontSize(11);
-    doc.text(`Opening balance: Rs. ${data.openingBalance.toFixed(2)}`);
-    doc.text(`Deposited: Rs. ${data.totalDeposits.toFixed(2)}`);
-    doc.text(`Withdrawn: Rs. ${data.totalWithdrawals.toFixed(2)}`);
-    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.closingBalance.toFixed(2)}`);
-    doc.font("Helvetica");
-    doc.moveDown(1);
-    doc.fontSize(9);
+    drawSummaryCard(doc, "Bank Balance", [
+      { label: "Opening balance", value: money(data.openingBalance) },
+      { label: "Deposited", value: money(data.totalDeposits) },
+      { label: "Withdrawn", value: money(data.totalWithdrawals) },
+      { label: "Closing balance", value: money(data.closingBalance), emphasis: true },
+    ]);
     drawLedgerTable(doc, buildBankAccountLedgerRows(data));
 
-    doc.fontSize(11);
-    doc.moveDown(1.5);
-    doc.fontSize(13).text("Balance in Hand");
-    doc.fontSize(11);
-    doc.text(`Opening balance: Rs. ${data.openingBalanceInHand.toFixed(2)}`);
-    doc.text(`Received from bank: Rs. ${data.totalWithdrawals.toFixed(2)}`);
-    doc.text(`Spent: Rs. ${(data.totalCashExpenseFromHand + data.totalEventExpensesPaidFromBank).toFixed(2)}`);
-    doc.font("Helvetica-Bold").text(`Closing balance: Rs. ${data.closingBalanceInHand.toFixed(2)}`);
-    doc.font("Helvetica");
-    doc.moveDown(1);
-    doc.fontSize(9);
+    doc.moveDown(1.2);
+    drawSummaryCard(doc, "Balance in Hand", [
+      { label: "Opening balance", value: money(data.openingBalanceInHand) },
+      { label: "Received from bank", value: money(data.totalWithdrawals) },
+      { label: "Spent", value: money(data.totalCashExpenseFromHand + data.totalEventExpensesPaidFromBank) },
+      { label: "Closing balance", value: money(data.closingBalanceInHand), emphasis: true },
+    ]);
     drawLedgerTable(doc, buildHandLedgerRows(data));
 
+    drawFooters(doc);
     doc.end();
   });
 }
@@ -412,34 +561,102 @@ export type EventPdfData = {
   expenses: { description: string; amount: string; status: string; date: string }[];
 };
 
+const EVENT_COLUMNS: { label: string; width: number; align: "left" | "right" }[] = [
+  { label: "Date", width: 70, align: "left" },
+  { label: "Description", width: 250, align: "left" },
+  { label: "Amount", width: 90, align: "right" },
+  { label: "Status", width: 90, align: "left" },
+];
+
+// Same visual language as drawLedgerTable (colored header, zebra stripes)
+// but a simpler 4-column shape -- event expenses have no running balance.
+function drawEventExpenseTable(doc: PDFKit.PDFDocument, expenses: EventPdfData["expenses"]) {
+  const startX = PAGE_MARGIN;
+  const tableWidth = EVENT_COLUMNS.reduce((sum, col) => sum + col.width, 0);
+  const bottomLimit = frameBottom(doc);
+  const CELL_PAD = 6;
+  const HEADER_ROW_HEIGHT = 20;
+
+  function drawHeaderRow() {
+    const y = doc.y;
+    doc.rect(startX, y, tableWidth, HEADER_ROW_HEIGHT).fill(COLORS.primary);
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(COLORS.white);
+    let x = startX;
+    for (const col of EVENT_COLUMNS) {
+      doc.text(col.label, x + CELL_PAD, y + 6, { width: col.width - CELL_PAD * 2, align: col.align });
+      x += col.width;
+    }
+    doc.fillColor(COLORS.textPrimary).font("Helvetica");
+    doc.x = startX;
+    doc.y = y + HEADER_ROW_HEIGHT;
+  }
+
+  if (doc.y + HEADER_ROW_HEIGHT + 24 > bottomLimit) {
+    doc.addPage();
+  }
+  drawHeaderRow();
+
+  if (expenses.length === 0) {
+    doc.fillColor(COLORS.textMuted).fontSize(9).text("None recorded for this event.", startX + CELL_PAD, doc.y + 6);
+    doc.fillColor(COLORS.textPrimary);
+    doc.x = startX;
+    doc.y += 20;
+    return;
+  }
+
+  expenses.forEach((e, index) => {
+    if (doc.y > bottomLimit - 24) {
+      doc.addPage();
+      drawHeaderRow();
+    }
+    const values = [formatDisplayDate(e.date), e.description, `Rs. ${fromMoney(e.amount).toFixed(2)}`, e.status];
+    const y = doc.y;
+    doc.fontSize(9);
+    const heights = values.map((v, i) => doc.heightOfString(v, { width: EVENT_COLUMNS[i].width - CELL_PAD * 2 }));
+    const rowHeight = Math.max(...heights, 11) + 8;
+
+    if (index % 2 === 1) {
+      doc.rect(startX, y, tableWidth, rowHeight).fill(COLORS.primarySoft);
+    }
+
+    let x = startX;
+    for (let i = 0; i < EVENT_COLUMNS.length; i++) {
+      const isStatus = i === 3;
+      let statusColor = COLORS.textPrimary;
+      if (isStatus) statusColor = e.status.toLowerCase() === "paid" ? COLORS.success : COLORS.danger;
+      doc.fillColor(statusColor);
+      doc.font(isStatus ? "Helvetica-Bold" : "Helvetica");
+      doc.text(values[i], x + CELL_PAD, y + 4, { width: EVENT_COLUMNS[i].width - CELL_PAD * 2, align: EVENT_COLUMNS[i].align });
+      x += EVENT_COLUMNS[i].width;
+    }
+
+    doc.fillColor(COLORS.textPrimary).font("Helvetica");
+    doc.x = startX;
+    doc.y = y + rowHeight;
+    doc.moveTo(startX, doc.y).lineTo(startX + tableWidth, doc.y).lineWidth(0.5).strokeColor(COLORS.border).stroke();
+  });
+}
+
 export function generateEventReportPdf(data: EventPdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40 });
+    const doc = new PDFDocument({ margin: PAGE_MARGIN, bufferPages: true });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(18).text(`CSI Women's Fellowship - ${data.name}`, { align: "center" });
-    if (data.details) {
-      doc.moveDown(0.3);
-      doc.fontSize(11).text(data.details, { align: "center" });
-    }
-    doc.moveDown(1.5);
+    startDocument(doc, data.name, data.details || "Event Report");
 
-    doc.fontSize(13).text("Summary");
-    doc.fontSize(11);
-    doc.text(`Paid: Rs. ${data.totalPaid.toFixed(2)}`);
-    doc.text(`Pending: Rs. ${data.totalPending.toFixed(2)}`);
-    doc.moveDown(1.5);
+    drawSummaryCard(doc, "Summary", [
+      { label: "Paid", value: money(data.totalPaid) },
+      { label: "Pending", value: money(data.totalPending), emphasis: true },
+    ]);
 
-    doc.fontSize(13).text("Expenses");
-    doc.fontSize(10);
-    if (data.expenses.length === 0) doc.text("None recorded for this event.");
-    for (const e of data.expenses) {
-      doc.text(`${e.date}  ${e.description}  Rs. ${fromMoney(e.amount).toFixed(2)}  (${e.status})`);
-    }
+    doc.font("Helvetica-Bold").fontSize(12).fillColor(COLORS.primaryDark).text("Expenses");
+    doc.fillColor(COLORS.textPrimary).font("Helvetica").moveDown(0.4);
+    drawEventExpenseTable(doc, data.expenses);
 
+    drawFooters(doc);
     doc.end();
   });
 }

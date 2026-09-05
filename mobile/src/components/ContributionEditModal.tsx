@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest } from "../lib/api";
 import type { MemberCollectionStatus } from "../lib/types";
-import { todayString, dateToString } from "../lib/format";
+import { todayString, dateToString, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -75,7 +75,7 @@ export default function ContributionEditModal({ visible, onClose, member }: Prop
 
           <Text style={styles.label}>Date</Text>
           <TouchableOpacity style={styles.editInput} onPress={() => setShowDatePicker(true)}>
-            <Text style={{ color: colors.textPrimary }}>{date}</Text>
+            <Text style={{ color: colors.textPrimary }}>{formatDisplayDate(date)}</Text>
           </TouchableOpacity>
           {showDatePicker && (
             <DateTimePicker value={new Date(`${date}T00:00:00`)} mode="date" display="default" onChange={handleDateChange} />

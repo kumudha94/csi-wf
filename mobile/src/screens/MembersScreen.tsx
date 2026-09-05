@@ -1,27 +1,46 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { apiRequest } from "../lib/api";
 import { formatCurrency } from "../lib/format";
-import type { Member, MemberWithAttributes } from "../lib/types";
+import type { Member, MemberWithAttributes, MemberStatus } from "../lib/types";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 import { useMemberSortPreference } from "../hooks/useMemberSortPreference";
+import type { SettingsStackParamList } from "../navigation/types";
 import MemberForm from "../components/MemberForm";
 import MemberSettingsModal from "../components/MemberSettingsModal";
 
-export default function MembersScreen() {
+const STATUS_FILTERS: { value: MemberStatus | "all"; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+  { value: "died", label: "Died" },
+];
+
+type Props = NativeStackScreenProps<SettingsStackParamList, "Members">;
+
+export default function MembersScreen({ route }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<MemberStatus | "all">(route.params?.initialStatus ?? "all");
   const [formVisible, setFormVisible] = useState(false);
   const [editingMember, setEditingMember] = useState<MemberWithAttributes | null>(null);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const { preference: sortPreference, setPreference: setSortPreference } = useMemberSortPreference();
 
-  const { data: members = [], isFetching } = useQuery({
+  // Dashboard's status tiles pass a fresh initialStatus each time they
+  // navigate here (even if the screen is already mounted in this stack) --
+  // pick it up without requiring the user to have come from a cold start.
+  useEffect(() => {
+    if (route.params?.initialStatus) setStatusFilter(route.params.initialStatus);
+  }, [route.params?.initialStatus]);
+
+  const { data: allMembers = [], isFetching } = useQuery({
     queryKey: ["members", search, sortPreference.field, sortPreference.dir],
     queryFn: () =>
       apiRequest<Member[]>(
@@ -32,6 +51,14 @@ export default function MembersScreen() {
         }).toString()}`
       ),
   });
+
+  // The list endpoint has no status filter server-side (only /export does),
+  // and member counts here are small enough that filtering client-side
+  // after fetch is simplest.
+  const members = useMemo(
+    () => (statusFilter === "all" ? allMembers : allMembers.filter((m) => m.status === statusFilter)),
+    [allMembers, statusFilter]
+  );
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest(`/api/members/${id}`, { method: "DELETE" }),
@@ -86,6 +113,18 @@ export default function MembersScreen() {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.statusFilterRow}>
+        {STATUS_FILTERS.map((opt) => (
+          <TouchableOpacity
+            key={opt.value}
+            style={[styles.statusChip, statusFilter === opt.value && styles.statusChipActive]}
+            onPress={() => setStatusFilter(opt.value)}
+          >
+            <Text style={[styles.statusChipText, statusFilter === opt.value && styles.statusChipTextActive]}>{opt.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
         data={members}
         keyExtractor={(m) => String(m.id)}
@@ -109,7 +148,11 @@ export default function MembersScreen() {
             </TouchableOpacity>
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No members yet. Tap "+ Add" to create one.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>
+            {statusFilter === "all" ? 'No members yet. Tap "+ Add" to create one.' : `No ${statusFilter} members.`}
+          </Text>
+        }
         contentContainerStyle={{ padding: 16 }}
       />
 
@@ -148,6 +191,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   addButton: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 16, justifyContent: "center" },
   addButtonText: { color: colors.white, fontWeight: "600" },
+  statusFilterRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 12 },
+  statusChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  statusChipActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  statusChipText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
+  statusChipTextActive: { color: colors.primary },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 10,

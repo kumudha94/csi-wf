@@ -6,7 +6,7 @@ import * as ImagePicker from "expo-image-picker";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest, uploadReceipt } from "../lib/api";
 import type { Expense, ExpenseStatus, ExpenseFundSource } from "../lib/types";
-import { todayString, dateToString } from "../lib/format";
+import { todayString, dateToString, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -143,7 +143,7 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
 
         <Text style={styles.label}>Date</Text>
         <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-          <Text style={{ color: colors.textPrimary }}>{date}</Text>
+          <Text style={{ color: colors.textPrimary }}>{formatDisplayDate(date)}</Text>
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker value={new Date(`${date}T00:00:00`)} mode="date" display="default" onChange={handleDateChange} />

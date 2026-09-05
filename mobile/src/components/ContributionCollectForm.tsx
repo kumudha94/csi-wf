@@ -1,29 +1,45 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { apiRequest } from "../lib/api";
 import type { MemberCollectionStatus } from "../lib/types";
-import { formatCurrency } from "../lib/format";
+import { formatCurrency, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 import ContributionEditModal from "./ContributionEditModal";
 import AddContributionModal from "./AddContributionModal";
+import TransactionSearchBar from "./TransactionSearchBar";
+import DateRangeFilterModal from "./DateRangeFilterModal";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
 
+type Props = {
+  // Lets the parent (BalanceScreen) collapse its shared balance card while
+  // this tab's own search keyboard is up -- mirrors the Transfers tab,
+  // which computes the same signal locally since it owns its search state.
+  onSearchActiveChange?: (active: boolean) => void;
+};
+
 // Mirrors the Transfers tab's shape: a plain list of what's already
 // recorded (tap to edit, trash to delete, FAB to add) -- picking WHO to
 // add a payment for happens in AddContributionModal, its own full screen.
-export default function ContributionCollectForm() {
+export default function ContributionCollectForm({ onSearchActiveChange }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [editingMember, setEditingMember] = useState<MemberCollectionStatus | null>(null);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState<{ from: string; to: string } | null>(null);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  useEffect(() => {
+    onSearchActiveChange?.(search.trim().length > 0);
+  }, [search, onSearchActiveChange]);
 
   const { data: status = [], isError } = useQuery({
     queryKey: ["contributionCollectionStatus"],
@@ -31,6 +47,21 @@ export default function ContributionCollectForm() {
   });
 
   const paid = useMemo(() => status.filter((s) => s.paidThisMonth), [status]);
+
+  // Text/date filters only narrow within this month's already-paid list --
+  // "collection-status" only ever reports the current month, there's no
+  // historical range to broaden into the way Expenses/Income do.
+  const filteredPaid = useMemo(() => {
+    let list = paid;
+    if (dateFilter) {
+      list = list.filter((m) => m.currentMonthDate && m.currentMonthDate >= dateFilter.from && m.currentMonthDate <= dateFilter.to);
+    }
+    const query = search.trim().toLowerCase();
+    if (query) {
+      list = list.filter((m) => m.name.toLowerCase().includes(query));
+    }
+    return list;
+  }, [paid, dateFilter, search]);
 
   const summary = useMemo(() => {
     let pendingAmount = 0;
@@ -85,9 +116,17 @@ export default function ContributionCollectForm() {
         </Text>
       </View>
 
+      <TransactionSearchBar
+        value={search}
+        onChangeText={setSearch}
+        onOpenAdvanced={() => setFilterModalVisible(true)}
+        hasActiveFilter={!!dateFilter}
+        placeholder="Search by member name"
+      />
+
       <FlatList
         style={{ flex: 1 }}
-        data={paid}
+        data={filteredPaid}
         keyExtractor={(m) => String(m.memberId)}
         renderItem={({ item }) => (
           <View style={styles.card}>
@@ -95,7 +134,7 @@ export default function ContributionCollectForm() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{item.name}</Text>
                 <Text style={styles.cardMeta}>
-                  {item.santhaNumber} · {item.currentMonthDate}
+                  {item.santhaNumber} · {item.currentMonthDate ? formatDisplayDate(item.currentMonthDate) : ""}
                 </Text>
               </View>
               <Text style={styles.cardAmount}>{formatCurrency(item.currentMonthAmount ?? 0)}</Text>
@@ -105,7 +144,11 @@ export default function ContributionCollectForm() {
             </TouchableOpacity>
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>{isError ? "Could not load contributions." : "No contributions logged yet this month."}</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>
+            {isError ? "Could not load contributions." : search.trim() || dateFilter ? "No matching contributions." : "No contributions logged yet this month."}
+          </Text>
+        }
         contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
       />
 
@@ -115,6 +158,14 @@ export default function ContributionCollectForm() {
 
       <ContributionEditModal visible={!!editingMember} onClose={() => setEditingMember(null)} member={editingMember} />
       <AddContributionModal visible={addModalVisible} onClose={() => setAddModalVisible(false)} />
+      <DateRangeFilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        initialFrom={dateFilter?.from ?? null}
+        initialTo={dateFilter?.to ?? null}
+        onApply={(from, to) => setDateFilter({ from, to })}
+        onClear={() => setDateFilter(null)}
+      />
     </View>
   );
 }

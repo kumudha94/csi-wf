@@ -8,7 +8,7 @@ import * as Sharing from "expo-sharing";
 import { apiRequest, API_BASE_URL } from "../lib/api";
 import { getToken } from "../lib/authStorage";
 import type { Expense, EventDetail } from "../lib/types";
-import { formatCurrency } from "../lib/format";
+import { formatCurrency, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 import ExpenseForm from "../components/ExpenseForm";
@@ -123,7 +123,7 @@ export default function EventDetailScreen({ route, navigation }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.expenseDescription}>{item.description}</Text>
                 <Text style={styles.expenseMeta}>
-                  {item.date} · {item.fundSource === "bank" ? "BankFund" : "CashFund"}
+                  {formatDisplayDate(item.date)} · {item.fundSource === "bank" ? "BankFund" : "CashFund"}
                 </Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>

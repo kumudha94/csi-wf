@@ -19,6 +19,20 @@ export function todayString(): string {
   return dateToString(new Date());
 }
 
+// True if a "YYYY-MM-DD" date string falls in the current calendar month.
+export function isCurrentMonth(value: string): boolean {
+  return value.slice(0, 7) === todayString().slice(0, 7);
+}
+
+// Converts the app's internal/API date format ("YYYY-MM-DD") to the
+// user-facing display format ("DD-MM-YYYY"). Never store or send this
+// format back to the API — it's for rendering only.
+export function formatDisplayDate(value: string): string {
+  if (!DATE_RE.test(value)) return value;
+  const [yyyy, mm, dd] = value.split("-");
+  return `${dd}-${mm}-${yyyy}`;
+}
+
 // Default date for a contribution collected today: if today is Sunday, use
 // today; otherwise the most recent past Sunday. Matches how the fellowship
 // actually dates a "this week's collection" entry.

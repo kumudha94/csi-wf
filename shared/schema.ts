@@ -293,6 +293,7 @@ export const cashFundExpenses = pgTable("cash_fund_expenses", {
   description: varchar("description", { length: 255 }).notNull(),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   date: varchar("date", { length: 10 }).notNull(),
+  receiptPhotoUrl: varchar("receipt_photo_url", { length: 500 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type CashFundExpense = typeof cashFundExpenses.$inferSelect;
@@ -302,6 +303,7 @@ export const insertCashFundExpenseSchema = z.object({
   description: z.string().min(1, "Description is required").max(255),
   amount: z.coerce.number().positive("Amount must be greater than 0"),
   date: dateStringSchema,
+  receiptPhotoUrl: z.string().url().nullable().optional(),
 });
 export type CashFundExpenseInput = z.infer<typeof insertCashFundExpenseSchema>;
 

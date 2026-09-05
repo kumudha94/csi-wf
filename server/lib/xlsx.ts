@@ -15,12 +15,6 @@ export function isSecondaryColumnKey(value: string): value is SecondaryColumnKey
   return value in SECONDARY_MEMBER_COLUMNS;
 }
 
-const STATUS_LABEL: Record<Member["status"], string> = {
-  active: "Active",
-  inactive: "Inactive",
-  died: "Died",
-};
-
 // `extraColumns` are blank print-only columns (e.g. "Signature") for the
 // treasurer to fill by hand after printing — they carry no data.
 export async function generateMembersXlsx(
@@ -35,7 +29,6 @@ export async function generateMembersXlsx(
     { header: "Santha No", key: "santhaNumber", width: 14 },
     { header: "Name", key: "name", width: 20 },
     { header: "Last Name", key: "lastName", width: 18 },
-    { header: "Status", key: "status", width: 12 },
     ...secondaryColumns.map((key) => ({ header: SECONDARY_MEMBER_COLUMNS[key].header, key, width: 18 })),
     ...extraColumns.map((label, i) => ({ header: label, key: `extra_${i}`, width: 18 })),
   ];
@@ -46,7 +39,6 @@ export async function generateMembersXlsx(
       santhaNumber: member.santhaNumber,
       name: member.name,
       lastName: member.lastName ?? "",
-      status: STATUS_LABEL[member.status],
     };
     for (const key of secondaryColumns) {
       row[key] = SECONDARY_MEMBER_COLUMNS[key].value(member);

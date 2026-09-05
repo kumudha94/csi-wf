@@ -17,7 +17,7 @@ import EventsScreen from "./src/screens/EventsScreen";
 import EventDetailScreen from "./src/screens/EventDetailScreen";
 import BalanceScreen from "./src/screens/BalanceScreen";
 import CashFundPanel from "./src/components/CashFundPanel";
-import type { EventsStackParamList, SettingsStackParamList } from "./src/navigation/types";
+import type { EventsStackParamList, SettingsStackParamList, TabParamList } from "./src/navigation/types";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import CustomFieldsScreen from "./src/screens/CustomFieldsScreen";
 import OnboardingScreen from "./src/screens/auth/OnboardingScreen";
@@ -29,14 +29,6 @@ import { NetworkProvider } from "./src/contexts/NetworkContext";
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 30, retry: 1 } },
 });
-
-export type TabParamList = {
-  Dashboard: undefined;
-  Events: undefined;
-  Balance: undefined;
-  CashFlow: undefined;
-  Settings: undefined;
-};
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const EventsStack = createNativeStackNavigator<EventsStackParamList>();

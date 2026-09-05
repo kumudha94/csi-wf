@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Image, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest, uploadReceipt } from "../lib/api";
 import type { BankTransaction, BankTransactionType } from "../lib/types";
-import { todayString, dateToString } from "../lib/format";
+import { todayString, dateToString, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -32,6 +33,7 @@ export default function BankTransactionForm({ visible, onClose, transaction }: P
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -116,19 +118,33 @@ export default function BankTransactionForm({ visible, onClose, transaction }: P
           <Text style={styles.title}>{isEditing ? "Edit Transfer" : "Add Transfer"}</Text>
 
           <Text style={styles.label}>Type *</Text>
-          <View style={styles.typeList}>
-            {TYPE_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[styles.typeOptionRow, type === opt.value && styles.typeOptionRowActive]}
-                onPress={() => setType(opt.value)}
-              >
-                <Text style={[styles.typeOptionRowText, type === opt.value && styles.typeOptionRowTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowTypePicker(true)}>
+            <Text style={styles.dropdownButtonText}>{TYPE_OPTIONS.find((opt) => opt.value === type)?.label}</Text>
+            <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <Modal visible={showTypePicker} transparent animationType="fade" onRequestClose={() => setShowTypePicker(false)}>
+            <TouchableOpacity style={styles.dropdownBackdrop} activeOpacity={1} onPress={() => setShowTypePicker(false)}>
+              <View style={styles.dropdownCard}>
+                {TYPE_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={styles.dropdownOptionRow}
+                    onPress={() => {
+                      setType(opt.value);
+                      setShowTypePicker(false);
+                    }}
+                  >
+                    <Ionicons
+                      name={type === opt.value ? "radio-button-on" : "radio-button-off"}
+                      size={20}
+                      color={type === opt.value ? colors.primary : colors.textMuted}
+                    />
+                    <Text style={styles.dropdownOptionText}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
 
           <Text style={styles.label}>Description *</Text>
           <TextInput
@@ -144,7 +160,7 @@ export default function BankTransactionForm({ visible, onClose, transaction }: P
           <Text style={styles.label}>Date</Text>
           <View style={styles.dateRow}>
             <TouchableOpacity style={[styles.input, { flex: 1 }]} onPress={() => setShowDatePicker(true)}>
-              <Text style={{ color: colors.textPrimary }}>{date}</Text>
+              <Text style={{ color: colors.textPrimary }}>{formatDisplayDate(date)}</Text>
             </TouchableOpacity>
           </View>
           {showDatePicker && (
@@ -192,11 +208,21 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.textPrimary,
     justifyContent: "center",
   },
-  typeList: { gap: 8 },
-  typeOptionRow: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, backgroundColor: colors.surface },
-  typeOptionRowActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  typeOptionRowText: { color: colors.textSecondary, fontWeight: "600" },
-  typeOptionRowTextActive: { color: colors.primary },
+  dropdownButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: colors.surface,
+  },
+  dropdownButtonText: { flex: 1, color: colors.textPrimary, fontSize: 15, marginRight: 8 },
+  dropdownBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 },
+  dropdownCard: { backgroundColor: colors.surface, borderRadius: 14, padding: 8, borderWidth: 1, borderColor: colors.border },
+  dropdownOptionRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 10 },
+  dropdownOptionText: { flex: 1, color: colors.textPrimary, fontSize: 15 },
   dateRow: { flexDirection: "row", gap: 8, alignItems: "center" },
   receiptPreviewRow: { flexDirection: "row", alignItems: "flex-end", gap: 12, marginBottom: 10, marginTop: 8 },
   receiptPreview: { width: 120, height: 120, borderRadius: 8 },

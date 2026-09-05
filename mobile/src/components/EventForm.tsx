@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest } from "../lib/api";
-import { dateToString } from "../lib/format";
+import { dateToString, formatDisplayDate } from "../lib/format";
 import type { EventSummary } from "../lib/types";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
@@ -69,7 +69,7 @@ export default function EventForm({ visible, onClose, event }: Props) {
         <Text style={styles.label}>Event date</Text>
         <View style={styles.dateRow}>
           <TouchableOpacity style={[styles.input, styles.dateInput]} onPress={() => setShowDatePicker(true)}>
-            <Text style={{ color: eventDate ? colors.textPrimary : colors.textMuted }}>{eventDate || "Not set"}</Text>
+            <Text style={{ color: eventDate ? colors.textPrimary : colors.textMuted }}>{eventDate ? formatDisplayDate(eventDate) : "Not set"}</Text>
           </TouchableOpacity>
           {eventDate && (
             <TouchableOpacity style={styles.clearDateButton} onPress={() => setEventDate(null)}>
