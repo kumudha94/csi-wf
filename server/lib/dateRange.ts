@@ -11,6 +11,10 @@ export function getMonthLabel(date: Date): string {
   return MONTH_NAMES[date.getMonth()];
 }
 
+export function todayDateString(date: Date = new Date()): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function getMonthStart(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }

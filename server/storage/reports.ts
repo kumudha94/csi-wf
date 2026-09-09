@@ -13,12 +13,16 @@ export async function getReportTotals({ from, to }: ReportRange) {
   const [paidRow] = await db
     .select({ total: sql<string>`coalesce(sum(${expenses.amount}), 0)` })
     .from(expenses)
-    .where(and(gte(expenses.date, from), lte(expenses.date, to), eq(expenses.status, "paid")));
+    .where(
+      and(gte(expenses.date, from), lte(expenses.date, to), eq(expenses.status, "paid"), eq(expenses.txnType, "debit"))
+    );
 
   const [pendingRow] = await db
     .select({ total: sql<string>`coalesce(sum(${expenses.amount}), 0)` })
     .from(expenses)
-    .where(and(gte(expenses.date, from), lte(expenses.date, to), eq(expenses.status, "pending")));
+    .where(
+      and(gte(expenses.date, from), lte(expenses.date, to), eq(expenses.status, "pending"), eq(expenses.txnType, "debit"))
+    );
 
   return {
     totalContributions: contribRow.total,
@@ -45,7 +49,7 @@ export async function getPriorActivity(before: string) {
   const [paidRow] = await db
     .select({ total: sql<string>`coalesce(sum(${expenses.amount}), 0)` })
     .from(expenses)
-    .where(and(lt(expenses.date, before), eq(expenses.status, "paid")));
+    .where(and(lt(expenses.date, before), eq(expenses.status, "paid"), eq(expenses.txnType, "debit")));
 
   return {
     totalContributions: contribRow.total,
@@ -64,7 +68,7 @@ export async function getExpensesByEvent({ from, to }: ReportRange) {
     })
     .from(expenses)
     .leftJoin(events, eq(expenses.eventId, events.id))
-    .where(and(gte(expenses.date, from), lte(expenses.date, to)))
+    .where(and(gte(expenses.date, from), lte(expenses.date, to), eq(expenses.txnType, "debit")))
     .orderBy(expenses.date);
 }
 

@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, serial, varchar, text, integer, numeric, timestamp, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, serial, varchar, text, integer, numeric, timestamp, uniqueIndex, jsonb, boolean } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 export const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
@@ -126,23 +126,48 @@ export const memberAttributeValues = pgTable(
 export type MemberAttributeValue = typeof memberAttributeValues.$inferSelect;
 
 // ---------- events ----------
+// Once an event has moved its leftover/shortfall to BankFund or CashFund,
+// this records where and when -- permanent and irreversible, so the UI can
+// stop offering the transfer action and show a settled state instead.
+export const EVENT_FUND_TARGETS = ["bank", "cash"] as const;
+export type EventFundTarget = (typeof EVENT_FUND_TARGETS)[number];
+
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 150 }).notNull(),
   details: text("details"),
   // Nullable: events created before this field existed have no date, and a
-  // treasurer may log an event before its date is finalized.
+  // treasurer may log an event before its date is finalized. Required only
+  // once hasEventFund is set -- see insertEventSchema's refine below.
   eventDate: varchar("event_date", { length: 10 }),
+  // Whether this event tracks its own Offering/Donation collection instead
+  // of paying its expenses from BankFund/CashFund. Locked once the event has
+  // any expense rows -- see routes/events.ts.
+  hasEventFund: boolean("has_event_fund").notNull().default(false),
+  fundTransferredTo: varchar("fund_transferred_to", { length: 10 }),
+  fundTransferredAt: timestamp("fund_transferred_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type Event = typeof events.$inferSelect;
 
-export const insertEventSchema = z.object({
+const eventShape = z.object({
   name: z.string().min(1, "Event name is required").max(150),
   details: z.string().nullable().optional(),
   eventDate: dateStringSchema.nullable().optional(),
+  hasEventFund: z.boolean().optional().default(false),
+});
+
+export const insertEventSchema = eventShape.refine((data) => !data.hasEventFund || !!data.eventDate, {
+  message: "Event date is required when tracking a separate event fund",
+  path: ["eventDate"],
 });
 export type EventInput = z.infer<typeof insertEventSchema>;
+
+// Used for PATCH -- a partial update can't re-validate the hasEventFund/
+// eventDate cross-field rule from the patch alone (the route merges it
+// against the current row instead, same as updateCashFundIncomeSchema).
+export const updateEventSchema = eventShape.partial();
+export type EventUpdateInput = z.infer<typeof updateEventSchema>;
 
 // ---------- expenses ----------
 export const EXPENSE_STATUSES = ["paid", "pending"] as const;
@@ -150,11 +175,19 @@ export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
 
 // Which pot a paid event expense actually comes out of: "bank" = the
 // hand-cash withdrawn from the bank for the event (reduces Balance in
-// Hand); "cash" = the Offering/Donation pot (reduces Cash Fund balance).
+// Hand); "cash" = the Offering/Donation pot (reduces Cash Fund balance);
+// "eventFund" = the event's own Offering/Donation collection, tracked
+// entirely separately from BankFund/CashFund (see events.hasEventFund).
 // Defaults to "bank" so existing rows keep their current behavior exactly
 // -- this is a pure additive column, no data migration needed.
-export const EXPENSE_FUND_SOURCES = ["bank", "cash"] as const;
+export const EXPENSE_FUND_SOURCES = ["bank", "cash", "eventFund"] as const;
 export type ExpenseFundSource = (typeof EXPENSE_FUND_SOURCES)[number];
+
+// "debit" = money spent (an expense, the historical meaning of this table).
+// "credit" = money collected (an event's own Offering/Donation entry).
+// Only meaningful for eventFund rows -- every non-event-fund row is a debit.
+export const EXPENSE_TXN_TYPES = ["debit", "credit"] as const;
+export type ExpenseTxnType = (typeof EXPENSE_TXN_TYPES)[number];
 
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
@@ -164,6 +197,10 @@ export const expenses = pgTable("expenses", {
   receiptPhotoUrl: varchar("receipt_photo_url", { length: 500 }),
   status: varchar("status", { length: 10 }).notNull().default("pending"),
   fundSource: varchar("fund_source", { length: 10 }).notNull().default("bank"),
+  txnType: varchar("txn_type", { length: 10 }).notNull().default("debit"),
+  // Only meaningful on a credit (event fund Offering/Donation) row -- donors
+  // are frequently non-members, so this is free text, not a members FK.
+  donorName: varchar("donor_name", { length: 150 }),
   date: varchar("date", { length: 10 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -176,6 +213,8 @@ export const insertExpenseSchema = z.object({
   receiptPhotoUrl: z.string().url().nullable().optional(),
   status: z.enum(EXPENSE_STATUSES).default("pending"),
   fundSource: z.enum(EXPENSE_FUND_SOURCES).default("bank"),
+  txnType: z.enum(EXPENSE_TXN_TYPES).default("debit"),
+  donorName: z.string().max(150).nullable().optional(),
   date: dateStringSchema,
 });
 export type ExpenseInput = z.infer<typeof insertExpenseSchema>;

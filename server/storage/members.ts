@@ -1,13 +1,19 @@
 import { db } from "../db";
 import { members, memberAttributeValues, type Member, type MemberInput, type MemberStatus } from "@shared/schema";
-import { eq, ilike, or, and, asc, desc, inArray } from "drizzle-orm";
+import { eq, ilike, or, and, asc, desc, inArray, sql } from "drizzle-orm";
 import { toMoney } from "../lib/money";
 
 export type MemberSortField = "santhaNumber" | "name";
 export type MemberSortDir = "asc" | "desc";
 
+// santhaNumber is a free-text varchar, but every value in practice is a
+// plain digit string ("1", "2", ... "357") -- ordering it as text produces
+// "1, 10, 100, 101, ..., 2, 20" instead of numeric order. Strip to digits
+// and cast for a natural sort; NULLIF+the cast-to-NULL path just guards
+// against some future non-numeric santha number without erroring the query.
 function sortColumn(sortBy: MemberSortField) {
-  return sortBy === "name" ? members.name : members.santhaNumber;
+  if (sortBy === "name") return members.name;
+  return sql`NULLIF(regexp_replace(${members.santhaNumber}, '\D', '', 'g'), '')::bigint`;
 }
 
 export async function listMembers(

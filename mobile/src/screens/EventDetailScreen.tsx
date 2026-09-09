@@ -12,6 +12,7 @@ import { formatCurrency, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 import ExpenseForm from "../components/ExpenseForm";
+import EventFundPanel from "../components/EventFundPanel";
 import EventForm from "../components/EventForm";
 import type { EventsStackParamList } from "../navigation/types";
 
@@ -71,6 +72,7 @@ export default function EventDetailScreen({ route, navigation }: Props) {
   const { data: expenses = [], isFetching, isError: expensesIsError } = useQuery({
     queryKey: ["expenses", "event", eventId],
     queryFn: () => apiRequest<Expense[]>(`/api/expenses?eventId=${eventId}`),
+    enabled: event ? !event.hasEventFund : false,
   });
 
   const deleteMutation = useMutation({
@@ -97,68 +99,76 @@ export default function EventDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {eventIsError ? <Text style={styles.emptyText}>Could not load event details.</Text> : (
-        <View style={styles.summaryCard}>
-          {event?.eventDate ? <Text style={styles.eventMeta}>{event.eventDate}</Text> : null}
-          {event?.details ? <Text style={styles.eventDetails}>{event.details}</Text> : null}
-          <Text style={styles.summaryLine}>Paid: {formatCurrency(totalPaid)}</Text>
-          <Text style={styles.summaryLineMuted}>Pending: {formatCurrency(totalPending)}</Text>
-        </View>
-      )}
+      {eventIsError && <Text style={styles.emptyText}>Could not load event details.</Text>}
 
-      <FlatList
-        data={expenses}
-        keyExtractor={(e) => String(e.id)}
-        refreshing={isFetching}
-        onRefresh={() => queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] })}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
+      {event?.hasEventFund ? (
+        <EventFundPanel eventId={eventId} event={event} />
+      ) : (
+        !eventIsError && (
+          <>
+            <View style={styles.summaryCard}>
+              {event?.eventDate ? <Text style={styles.eventMeta}>{event.eventDate}</Text> : null}
+              {event?.details ? <Text style={styles.eventDetails}>{event.details}</Text> : null}
+              <Text style={styles.summaryLine}>Paid: {formatCurrency(totalPaid)}</Text>
+              <Text style={styles.summaryLineMuted}>Pending: {formatCurrency(totalPending)}</Text>
+            </View>
+
+            <FlatList
+              data={expenses}
+              keyExtractor={(e) => String(e.id)}
+              refreshing={isFetching}
+              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["expenses", "event", eventId] })}
+              renderItem={({ item }) => (
+                <View style={styles.card}>
+                  <TouchableOpacity
+                    style={styles.cardContent}
+                    onPress={() => {
+                      setEditingExpense(item);
+                      setFormVisible(true);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.expenseDescription}>{item.description}</Text>
+                      <Text style={styles.expenseMeta}>
+                        {formatDisplayDate(item.date)} · {item.fundSource === "bank" ? "BankFund" : "CashFund"}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
+                      <Text style={[styles.badge, item.status === "paid" ? styles.badgePaid : styles.badgePending]}>
+                        {item.status}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              )}
+              ListEmptyComponent={<Text style={styles.emptyText}>{expensesIsError ? "Could not load expenses." : "No expenses yet for this event."}</Text>}
+              contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
+            />
+
             <TouchableOpacity
-              style={styles.cardContent}
+              style={styles.fab}
               onPress={() => {
-                setEditingExpense(item);
+                setEditingExpense(null);
                 setFormVisible(true);
               }}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.expenseDescription}>{item.description}</Text>
-                <Text style={styles.expenseMeta}>
-                  {formatDisplayDate(item.date)} · {item.fundSource === "bank" ? "BankFund" : "CashFund"}
-                </Text>
-              </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
-                <Text style={[styles.badge, item.status === "paid" ? styles.badgePaid : styles.badgePending]}>
-                  {item.status}
-                </Text>
-              </View>
+              <Text style={styles.fabText}>+ Add Expense</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
-              <Ionicons name="trash-outline" size={20} color={colors.danger} />
-            </TouchableOpacity>
-          </View>
-        )}
-        ListEmptyComponent={<Text style={styles.emptyText}>{expensesIsError ? "Could not load expenses." : "No expenses yet for this event."}</Text>}
-        contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
-      />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => {
-          setEditingExpense(null);
-          setFormVisible(true);
-        }}
-      >
-        <Text style={styles.fabText}>+ Add Expense</Text>
-      </TouchableOpacity>
-
-      <ExpenseForm
-        visible={formVisible}
-        onClose={() => setFormVisible(false)}
-        eventId={eventId}
-        expense={editingExpense}
-        invalidateKey={["expenses", "event", eventId]}
-      />
+            <ExpenseForm
+              visible={formVisible}
+              onClose={() => setFormVisible(false)}
+              eventId={eventId}
+              expense={editingExpense}
+              invalidateKey={["expenses", "event", eventId]}
+            />
+          </>
+        )
+      )}
 
       <EventForm visible={eventFormVisible} onClose={() => setEventFormVisible(false)} event={event} />
     </View>

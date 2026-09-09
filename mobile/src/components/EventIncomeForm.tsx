@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest, uploadReceipt } from "../lib/api";
-import type { Expense, ExpenseStatus, ExpenseFundSource } from "../lib/types";
+import type { Expense, ExpenseStatus } from "../lib/types";
 import { todayString, dateToString, formatDisplayDate } from "../lib/format";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
@@ -13,25 +13,25 @@ import { useTheme } from "../contexts/ThemeContext";
 type Props = {
   visible: boolean;
   onClose: () => void;
-  eventId: number | null;
-  expense?: Expense | null;
+  eventId: number;
+  entry?: Expense | null;
   invalidateKey: unknown[];
-  // When set, this expense always comes out of the event's own fund -- the
-  // Bank/Cash picker is hidden and every save is forced to this value.
-  lockedFundSource?: ExpenseFundSource;
 };
 
-export default function ExpenseForm({ visible, onClose, eventId, expense, invalidateKey, lockedFundSource }: Props) {
+// Credit-side counterpart to ExpenseForm -- an event's own Offering/Donation
+// entry, written to the same `expenses` table with txnType "credit" and
+// fundSource forced to "eventFund" (never user-chosen).
+export default function EventIncomeForm({ visible, onClose, eventId, entry, invalidateKey }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
-  const isEditing = !!expense;
+  const isEditing = !!entry;
 
+  const [donorName, setDonorName] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayString());
-  const [status, setStatus] = useState<ExpenseStatus>("pending");
-  const [fundSource, setFundSource] = useState<ExpenseFundSource>(lockedFundSource || "bank");
+  const [status, setStatus] = useState<ExpenseStatus>("paid");
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -39,15 +39,15 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
 
   useEffect(() => {
     if (visible) {
-      setDescription(expense?.description || "");
-      setAmount(expense ? String(expense.amount) : "");
-      setDate(expense?.date || todayString());
-      setStatus(expense?.status || "pending");
-      setFundSource(lockedFundSource || expense?.fundSource || "bank");
+      setDonorName(entry?.donorName || "");
+      setDescription(entry?.description || "");
+      setAmount(entry ? String(entry.amount) : "");
+      setDate(entry?.date || todayString());
+      setStatus(entry?.status || "paid");
       setReceiptUri(null);
-      setReceiptUrl(expense?.receiptPhotoUrl || null);
+      setReceiptUrl(entry?.receiptPhotoUrl || null);
     }
-  }, [visible, expense]);
+  }, [visible, entry]);
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === "ios");
@@ -85,29 +85,28 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
         amount: parseFloat(amount),
         receiptPhotoUrl: receiptUrl,
         status,
-        fundSource,
+        fundSource: "eventFund" as const,
+        txnType: "credit" as const,
+        donorName: donorName.trim() || null,
         date,
       };
       if (isEditing) {
-        return apiRequest(`/api/expenses/${expense!.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+        return apiRequest(`/api/expenses/${entry!.id}`, { method: "PATCH", body: JSON.stringify(payload) });
       }
       return apiRequest("/api/expenses", { method: "POST", body: JSON.stringify(payload) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: invalidateKey });
       queryClient.invalidateQueries({ queryKey: ["events"] });
-      if (eventId !== null) queryClient.invalidateQueries({ queryKey: ["event", eventId] });
-      queryClient.invalidateQueries({ queryKey: ["balance"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["reports"] });
+      queryClient.invalidateQueries({ queryKey: ["event", eventId] });
       onClose();
     },
-    onError: (error: any) => Alert.alert("Could not save expense", error.message || "Something went wrong"),
+    onError: (error: any) => Alert.alert("Could not save entry", error.message || "Something went wrong"),
   });
 
   const handleSubmit = () => {
     if (!description.trim()) {
-      Alert.alert("Missing description", "Enter what this expense was for.");
+      Alert.alert("Missing reason", "Enter what this offering or donation was for.");
       return;
     }
     const parsedAmount = parseFloat(amount);
@@ -122,32 +121,16 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.title}>{isEditing ? "Edit Expense" : "Add Expense"}</Text>
+        <Text style={styles.title}>{isEditing ? "Edit Entry" : "Add Offering / Donation"}</Text>
+
+        <Text style={styles.label}>Donor name (optional)</Text>
+        <TextInput style={styles.input} value={donorName} onChangeText={setDonorName} placeholder="Type a name, or leave blank" />
 
         <Text style={styles.label}>Reason / Description *</Text>
         <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholder="What was this for?" />
 
         <Text style={styles.label}>Amount (₹) *</Text>
         <TextInput style={styles.input} value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="decimal-pad" />
-
-        {!lockedFundSource && (
-          <>
-            <Text style={styles.label}>Using amount from *</Text>
-            <View style={styles.statusRow}>
-              {(["bank", "cash"] as ExpenseFundSource[]).map((source) => (
-                <TouchableOpacity
-                  key={source}
-                  style={[styles.statusOption, fundSource === source && styles.statusOptionActive]}
-                  onPress={() => setFundSource(source)}
-                >
-                  <Text style={[styles.statusOptionText, fundSource === source && styles.statusOptionTextActive]}>
-                    {source === "bank" ? "BankFund" : "CashFund"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
 
         <Text style={styles.label}>Date</Text>
         <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
@@ -166,7 +149,7 @@ export default function ExpenseForm({ visible, onClose, eventId, expense, invali
               onPress={() => setStatus(s)}
             >
               <Text style={[styles.statusOptionText, status === s && styles.statusOptionTextActive]}>
-                {s === "paid" ? "Paid" : "Pending"}
+                {s === "paid" ? "Received" : "Pending"}
               </Text>
             </TouchableOpacity>
           ))}

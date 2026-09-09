@@ -5,14 +5,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { apiRequest } from "../lib/api";
 import { dateToString, formatDisplayDate } from "../lib/format";
-import type { EventSummary } from "../lib/types";
 import type { ThemeColors } from "../theme";
 import { useTheme } from "../contexts/ThemeContext";
 
 type Props = {
   visible: boolean;
   onClose: () => void;
-  event?: { id: number; name: string; details: string | null; eventDate: string | null } | null;
+  event?: {
+    id: number;
+    name: string;
+    details: string | null;
+    eventDate: string | null;
+    hasEventFund: boolean;
+    hasExpenses: boolean;
+  } | null;
 };
 
 export default function EventForm({ visible, onClose, event }: Props) {
@@ -20,9 +26,11 @@ export default function EventForm({ visible, onClose, event }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const isEditing = !!event;
+  const toggleLocked = !!event?.hasExpenses;
   const [name, setName] = useState("");
   const [details, setDetails] = useState("");
   const [eventDate, setEventDate] = useState<string | null>(null);
+  const [hasEventFund, setHasEventFund] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
@@ -30,6 +38,7 @@ export default function EventForm({ visible, onClose, event }: Props) {
       setName(event?.name || "");
       setDetails(event?.details || "");
       setEventDate(event?.eventDate || null);
+      setHasEventFund(event?.hasEventFund || false);
     }
   }, [visible, event]);
 
@@ -42,7 +51,7 @@ export default function EventForm({ visible, onClose, event }: Props) {
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const payload = { name: name.trim(), details: details.trim() || null, eventDate };
+      const payload = { name: name.trim(), details: details.trim() || null, eventDate, hasEventFund };
       if (isEditing) {
         return apiRequest(`/api/events/${event!.id}`, { method: "PATCH", body: JSON.stringify(payload) });
       }
@@ -86,6 +95,28 @@ export default function EventForm({ visible, onClose, event }: Props) {
           />
         )}
 
+        <Text style={styles.label}>Track a separate Offering/Donation for this event?</Text>
+        <View style={styles.statusRow}>
+          {([false, true] as const).map((value) => (
+            <TouchableOpacity
+              key={String(value)}
+              style={[styles.statusOption, hasEventFund === value && styles.statusOptionActive]}
+              onPress={() => !toggleLocked && setHasEventFund(value)}
+              disabled={toggleLocked}
+            >
+              <Text style={[styles.statusOptionText, hasEventFund === value && styles.statusOptionTextActive]}>
+                {value ? "Yes" : "No"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {toggleLocked && (
+          <Text style={styles.helperText}>This event already has expenses, so this setting can't be changed.</Text>
+        )}
+        {hasEventFund && !eventDate && !toggleLocked && (
+          <Text style={styles.helperText}>An event date is required to track a separate fund.</Text>
+        )}
+
         <Text style={styles.label}>Details</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
@@ -105,6 +136,10 @@ export default function EventForm({ visible, onClose, event }: Props) {
             onPress={() => {
               if (!name.trim()) {
                 Alert.alert("Missing name", "Enter an event name.");
+                return;
+              }
+              if (hasEventFund && !eventDate) {
+                Alert.alert("Missing event date", "Set an event date to track a separate event fund.");
                 return;
               }
               saveMutation.mutate();
@@ -129,6 +164,20 @@ const createStyles = (colors: ThemeColors) =>
     dateInput: { flex: 1 },
     clearDateButton: { paddingHorizontal: 4, paddingVertical: 8 },
     clearDateButtonText: { color: colors.danger, fontWeight: "600", fontSize: 13 },
+    statusRow: { flexDirection: "row", gap: 10 },
+    statusOption: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingVertical: 10,
+      alignItems: "center",
+      backgroundColor: colors.surface,
+    },
+    statusOptionActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+    statusOptionText: { color: colors.textSecondary, fontWeight: "600" },
+    statusOptionTextActive: { color: colors.primary },
+    helperText: { fontSize: 12, color: colors.textMuted, marginTop: 6 },
     row: { flexDirection: "row", gap: 12, marginTop: 28 },
     button: { flex: 1, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
     buttonText: { color: colors.white, fontSize: 15, fontWeight: "600" },

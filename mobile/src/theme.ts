@@ -19,6 +19,9 @@ export const lightColors = {
   // so the two cards read as distinct funds without introducing new hues.
   bankGradient: ["#8B5CF6", "#4C1D95"] as [string, string],
   cashGradient: ["#E0925F", "#8A3E1F"] as [string, string],
+  // Event fund card -- distinct green so it reads apart from bank (purple)
+  // and cash (amber) at a glance.
+  eventGradient: ["#4CAF7D", "#1F5C3E"] as [string, string],
 };
 
 export type ThemeColors = typeof lightColors;
@@ -41,4 +44,5 @@ export const darkColors: ThemeColors = {
   white: "#FFFFFF",
   bankGradient: ["#7C3AED", "#2E1065"] as [string, string],
   cashGradient: ["#C97A44", "#5C2C11"] as [string, string],
+  eventGradient: ["#3E9C6E", "#123D28"] as [string, string],
 };

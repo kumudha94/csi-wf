@@ -36,14 +36,25 @@ export type AttributeDefinition = {
   createdAt: string;
 };
 
+export type EventFundTarget = "bank" | "cash";
+
+type EventFundFields = {
+  hasEventFund: boolean;
+  fundTransferredTo: EventFundTarget | null;
+  fundTransferredAt: string | null;
+  totalPaid: number;
+  eventFundCollected: number;
+  eventFundRemaining: number;
+  hasExpenses: boolean;
+};
+
 export type EventSummary = {
   id: number;
   name: string;
   details: string | null;
   eventDate: string | null;
   createdAt: string;
-  totalPaid: number;
-};
+} & EventFundFields;
 
 export type EventDetail = {
   id: number;
@@ -51,11 +62,13 @@ export type EventDetail = {
   details: string | null;
   eventDate: string | null;
   createdAt: string;
-};
+} & EventFundFields;
 
 export type ExpenseStatus = "paid" | "pending";
 
-export type ExpenseFundSource = "bank" | "cash";
+export type ExpenseFundSource = "bank" | "cash" | "eventFund";
+
+export type ExpenseTxnType = "debit" | "credit";
 
 export type Expense = {
   id: number;
@@ -65,6 +78,8 @@ export type Expense = {
   receiptPhotoUrl: string | null;
   status: ExpenseStatus;
   fundSource: ExpenseFundSource;
+  txnType: ExpenseTxnType;
+  donorName: string | null;
   date: string;
   createdAt: string;
 };

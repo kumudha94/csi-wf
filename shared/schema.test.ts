@@ -3,6 +3,7 @@ import {
   insertMemberSchema,
   insertAttributeDefinitionSchema,
   insertEventSchema,
+  updateEventSchema,
   insertExpenseSchema,
   insertContributionSchema,
   collectContributionSchema,
@@ -135,6 +136,35 @@ describe("insertEventSchema", () => {
     expect(insertEventSchema.safeParse({ name: "Annual Meet", eventDate: "2026-09-15" }).success).toBe(true);
     expect(insertEventSchema.safeParse({ name: "Annual Meet", eventDate: "15-09-2026" }).success).toBe(false);
   });
+
+  it("defaults hasEventFund to false", () => {
+    const result = insertEventSchema.parse({ name: "Annual Meet" });
+    expect(result.hasEventFund).toBe(false);
+  });
+
+  it("requires an eventDate when hasEventFund is true", () => {
+    expect(insertEventSchema.safeParse({ name: "Annual Meet", hasEventFund: true }).success).toBe(false);
+    expect(
+      insertEventSchema.safeParse({ name: "Annual Meet", hasEventFund: true, eventDate: null }).success
+    ).toBe(false);
+    expect(
+      insertEventSchema.safeParse({ name: "Annual Meet", hasEventFund: true, eventDate: "2026-09-15" }).success
+    ).toBe(true);
+  });
+
+  it("does not require an eventDate when hasEventFund is false", () => {
+    expect(insertEventSchema.safeParse({ name: "Annual Meet", hasEventFund: false }).success).toBe(true);
+  });
+});
+
+describe("updateEventSchema", () => {
+  it("allows a partial patch without re-checking the hasEventFund/eventDate rule", () => {
+    expect(updateEventSchema.safeParse({ hasEventFund: true }).success).toBe(true);
+  });
+
+  it("still rejects a malformed eventDate", () => {
+    expect(updateEventSchema.safeParse({ eventDate: "15-09-2026" }).success).toBe(false);
+  });
 });
 
 describe("insertExpenseSchema", () => {
@@ -186,6 +216,45 @@ describe("insertExpenseSchema", () => {
   it("rejects an invalid fundSource", () => {
     expect(
       insertExpenseSchema.safeParse({ description: "Stationery", amount: 10, date: "2026-08-29", fundSource: "wallet" })
+        .success
+    ).toBe(false);
+  });
+
+  it("accepts the eventFund fundSource", () => {
+    const result = insertExpenseSchema.safeParse({
+      description: "Offering",
+      amount: 500,
+      date: "2026-08-29",
+      fundSource: "eventFund",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.fundSource).toBe("eventFund");
+  });
+
+  it("defaults txnType to debit", () => {
+    const result = insertExpenseSchema.parse({ description: "Stationery", amount: 10, date: "2026-08-29" });
+    expect(result.txnType).toBe("debit");
+  });
+
+  it("accepts an explicit credit txnType with a donor name", () => {
+    const result = insertExpenseSchema.safeParse({
+      description: "Offering",
+      amount: 500,
+      date: "2026-08-29",
+      fundSource: "eventFund",
+      txnType: "credit",
+      donorName: "Grace Devi",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.txnType).toBe("credit");
+      expect(result.data.donorName).toBe("Grace Devi");
+    }
+  });
+
+  it("rejects an invalid txnType", () => {
+    expect(
+      insertExpenseSchema.safeParse({ description: "Stationery", amount: 10, date: "2026-08-29", txnType: "refund" })
         .success
     ).toBe(false);
   });
