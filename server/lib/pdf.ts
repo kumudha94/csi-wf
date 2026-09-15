@@ -556,9 +556,28 @@ export function generateBankFundReportPdf(data: BankFundReportPdfData): Promise<
 export type EventPdfData = {
   name: string;
   details: string | null;
+  hasEventFund: boolean;
   totalPaid: number;
   totalPending: number;
+  // Plain (no event fund) expense-only report -- unused when hasEventFund is true.
   expenses: { description: string; amount: string; status: string; date: string }[];
+  // Present only when hasEventFund is true: the event's own Offering/Donation
+  // fund is a self-contained cash book, so it gets a credit/debit/balance
+  // ledger like Cash/Bank Fund instead of the plain expense table.
+  eventFund?: {
+    totalCollected: number;
+    totalPendingCollection: number;
+    totalPendingExpense: number;
+    remaining: number;
+    entries: {
+      description: string;
+      amount: string;
+      status: string;
+      date: string;
+      txnType: "debit" | "credit";
+      donorName: string | null;
+    }[];
+  };
 };
 
 const EVENT_COLUMNS: { label: string; width: number; align: "left" | "right" }[] = [
@@ -567,6 +586,34 @@ const EVENT_COLUMNS: { label: string; width: number; align: "left" | "right" }[]
   { label: "Amount", width: 90, align: "right" },
   { label: "Status", width: 90, align: "left" },
 ];
+
+// Event Fund ledger: same LedgerRow shape/table as Cash/Bank Fund, but here
+// *both* sides only move the running balance once status is "paid" -- a
+// pending credit (pledge) is exactly as unreal as a pending debit until it's
+// confirmed, matching eventFundRemaining's own filter in storage/events.ts.
+function buildEventFundLedgerRows(entries: NonNullable<EventPdfData["eventFund"]>["entries"]): LedgerRow[] {
+  type UnbalancedRow = Omit<LedgerRow, "balance"> & { order: number; paid: boolean };
+  const rows: UnbalancedRow[] = entries.map((e, i) => {
+    const paid = e.status === "paid";
+    return {
+      date: e.date,
+      description: e.donorName ? `${e.description} - ${e.donorName}` : e.description,
+      credit: e.txnType === "credit" ? fromMoney(e.amount) : 0,
+      debit: e.txnType === "debit" ? fromMoney(e.amount) : 0,
+      status: paid ? (e.txnType === "credit" ? "Received" : "Paid") : "Pending",
+      order: i,
+      paid,
+    };
+  });
+
+  rows.sort((a, b) => (a.date === b.date ? a.order - b.order : a.date.localeCompare(b.date)));
+
+  let balance = 0;
+  return rows.map(({ paid, ...r }) => {
+    if (paid) balance += r.credit - r.debit;
+    return { ...r, balance };
+  });
+}
 
 // Same visual language as drawLedgerTable (colored header, zebra stripes)
 // but a simpler 4-column shape -- event expenses have no running balance.
@@ -647,14 +694,29 @@ export function generateEventReportPdf(data: EventPdfData): Promise<Buffer> {
 
     startDocument(doc, data.name, data.details || "Event Report");
 
-    drawSummaryCard(doc, "Summary", [
-      { label: "Paid", value: money(data.totalPaid) },
-      { label: "Pending", value: money(data.totalPending), emphasis: true },
-    ]);
+    if (data.hasEventFund && data.eventFund) {
+      const fund = data.eventFund;
+      drawSummaryCard(doc, "Summary", [
+        { label: "Collected", value: money(fund.totalCollected) },
+        { label: "Pending collection", value: money(fund.totalPendingCollection) },
+        { label: "Expenses", value: money(data.totalPaid) },
+        { label: "Pending expenses", value: money(fund.totalPendingExpense) },
+        { label: "Balance", value: money(fund.remaining), emphasis: true },
+      ]);
 
-    doc.font("Helvetica-Bold").fontSize(12).fillColor(COLORS.primaryDark).text("Expenses");
-    doc.fillColor(COLORS.textPrimary).font("Helvetica").moveDown(0.4);
-    drawEventExpenseTable(doc, data.expenses);
+      doc.font("Helvetica-Bold").fontSize(12).fillColor(COLORS.primaryDark).text("Offering, Donations & Expenses");
+      doc.fillColor(COLORS.textPrimary).font("Helvetica").moveDown(0.4);
+      drawLedgerTable(doc, buildEventFundLedgerRows(fund.entries));
+    } else {
+      drawSummaryCard(doc, "Summary", [
+        { label: "Paid", value: money(data.totalPaid) },
+        { label: "Pending", value: money(data.totalPending), emphasis: true },
+      ]);
+
+      doc.font("Helvetica-Bold").fontSize(12).fillColor(COLORS.primaryDark).text("Expenses");
+      doc.fillColor(COLORS.textPrimary).font("Helvetica").moveDown(0.4);
+      drawEventExpenseTable(doc, data.expenses);
+    }
 
     drawFooters(doc);
     doc.end();

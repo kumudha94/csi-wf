@@ -50,20 +50,55 @@ eventsRouter.get(
       res.status(404).json({ error: "Event not found" });
       return;
     }
-    // Credit (Offering/Donation) rows aren't expenses -- keep them out of
-    // this ledger's paid/pending expense totals and rows.
-    const debitRows = (await expensesStorage.listExpenses(id)).filter((e) => e.txnType === "debit");
-    const totalPaid = debitRows.filter((e) => e.status === "paid").reduce((sum, e) => sum + fromMoney(e.amount), 0);
-    const totalPending = debitRows
-      .filter((e) => e.status === "pending")
-      .reduce((sum, e) => sum + fromMoney(e.amount), 0);
-    const pdfBuffer = await generateEventReportPdf({
-      name: event.name,
-      details: event.details,
-      totalPaid,
-      totalPending,
-      expenses: debitRows,
-    });
+    const rows = await expensesStorage.listExpenses(id);
+    // Events tracking their own Offering/Donation fund get a credit/debit/
+    // balance ledger (like Cash/Bank Fund) instead of the plain expense-only
+    // report -- see generateEventReportPdf.
+    const pdfData = event.hasEventFund
+      ? {
+          name: event.name,
+          details: event.details,
+          hasEventFund: true as const,
+          totalPaid: event.totalPaid,
+          totalPending: 0,
+          expenses: [],
+          eventFund: {
+            totalCollected: event.eventFundCollected,
+            totalPendingCollection: rows
+              .filter((e) => e.txnType === "credit" && e.status === "pending")
+              .reduce((sum, e) => sum + fromMoney(e.amount), 0),
+            totalPendingExpense: rows
+              .filter((e) => e.txnType === "debit" && e.status === "pending")
+              .reduce((sum, e) => sum + fromMoney(e.amount), 0),
+            remaining: event.eventFundRemaining,
+            entries: rows.map((e) => ({
+              description: e.description,
+              amount: e.amount,
+              status: e.status,
+              date: e.date,
+              txnType: e.txnType as "debit" | "credit",
+              donorName: e.donorName,
+            })),
+          },
+        }
+      : (() => {
+          const debitRows = rows.filter((e) => e.txnType === "debit");
+          const totalPaid = debitRows
+            .filter((e) => e.status === "paid")
+            .reduce((sum, e) => sum + fromMoney(e.amount), 0);
+          const totalPending = debitRows
+            .filter((e) => e.status === "pending")
+            .reduce((sum, e) => sum + fromMoney(e.amount), 0);
+          return {
+            name: event.name,
+            details: event.details,
+            hasEventFund: false as const,
+            totalPaid,
+            totalPending,
+            expenses: debitRows,
+          };
+        })();
+    const pdfBuffer = await generateEventReportPdf(pdfData);
     const safeName = event.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="csi-wf-${safeName}.pdf"`);
