@@ -6,7 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Text, TouchableOpacity } from "react-native";
 import type { ReactNode } from "react";
 import Toast from "react-native-toast-message";
 
@@ -87,7 +87,7 @@ function TabNavigator() {
 }
 
 function AppContent() {
-  const { isLoading, isSetUp, isAuthenticated } = useAuth();
+  const { isLoading, isSetUp, isAuthenticated, bootError, retryBoot } = useAuth();
   const { colors, scheme } = useTheme();
 
   if (isLoading) {
@@ -99,7 +99,23 @@ function AppContent() {
   }
 
   let screen: ReactNode;
-  if (!isSetUp) screen = <OnboardingScreen />;
+  if (bootError) {
+    screen = (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: colors.background }}>
+        <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
+        <Text style={{ fontSize: 18, fontWeight: "600", color: colors.textPrimary, marginTop: 12 }}>Can't reach the server</Text>
+        <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", marginTop: 6 }}>
+          Check the internet connection and try again.
+        </Text>
+        <TouchableOpacity
+          onPress={retryBoot}
+          style={{ backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 12, paddingHorizontal: 32, marginTop: 20 }}
+        >
+          <Text style={{ color: colors.white, fontSize: 16, fontWeight: "600" }}>Try again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  } else if (!isSetUp) screen = <OnboardingScreen />;
   else if (!isAuthenticated) screen = <PinLoginScreen />;
   else
     screen = (

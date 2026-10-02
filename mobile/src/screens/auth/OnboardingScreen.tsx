@@ -49,6 +49,12 @@ export default function OnboardingScreen() {
       await login(token);
       markSetUp();
     } catch (error: any) {
+      // Server already has an account (409) — this device just didn't know.
+      // Send to PIN login rather than letting the user retry setup.
+      if (typeof error?.message === "string" && error.message.includes("already set up")) {
+        markSetUp();
+        return;
+      }
       Alert.alert("Setup failed", error.message || "Something went wrong");
     } finally {
       setIsSubmitting(false);
