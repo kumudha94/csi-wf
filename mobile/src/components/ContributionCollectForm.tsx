@@ -11,6 +11,7 @@ import ContributionEditModal from "./ContributionEditModal";
 import AddContributionModal from "./AddContributionModal";
 import TransactionSearchBar from "./TransactionSearchBar";
 import DateRangeFilterModal from "./DateRangeFilterModal";
+import FilterSummaryCard from "./FilterSummaryCard";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -123,6 +124,14 @@ export default function ContributionCollectForm({ onSearchActiveChange }: Props)
         hasActiveFilter={!!dateFilter}
         placeholder="Search by member name"
       />
+      {dateFilter && (
+        <FilterSummaryCard
+          from={dateFilter.from}
+          to={dateFilter.to}
+          count={filteredPaid.length}
+          totalAmount={filteredPaid.reduce((total, m) => total + (m.currentMonthAmount ?? 0), 0)}
+        />
+      )}
 
       <FlatList
         style={{ flex: 1 }}

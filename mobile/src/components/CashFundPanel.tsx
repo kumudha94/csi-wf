@@ -14,6 +14,7 @@ import CashExpenseForm from "./CashExpenseForm";
 import ReportModal from "./ReportModal";
 import TransactionSearchBar from "./TransactionSearchBar";
 import DateRangeFilterModal from "./DateRangeFilterModal";
+import FilterSummaryCard from "./FilterSummaryCard";
 
 type Tab = "income" | "expenses";
 
@@ -165,6 +166,14 @@ export default function CashFundPanel() {
             hasActiveFilter={!!incomeDateFilter}
             placeholder="Search by reason"
           />
+          {incomeDateFilter && (
+            <FilterSummaryCard
+              from={incomeDateFilter.from}
+              to={incomeDateFilter.to}
+              count={income.length}
+              totalAmount={income.reduce((total, row) => total + row.amount, 0)}
+            />
+          )}
           <FlatList
             style={{ flex: 1 }}
             data={income}
@@ -217,6 +226,14 @@ export default function CashFundPanel() {
             hasActiveFilter={!!expenseDateFilter}
             placeholder="Search expenses by reason"
           />
+          {expenseDateFilter && (
+            <FilterSummaryCard
+              from={expenseDateFilter.from}
+              to={expenseDateFilter.to}
+              count={expenses.length}
+              totalAmount={expenses.reduce((total, row) => total + row.amount, 0)}
+            />
+          )}
           <FlatList
             style={{ flex: 1 }}
             data={expenses}

@@ -14,6 +14,7 @@ import ContributionCollectForm from "../components/ContributionCollectForm";
 import ReportModal from "../components/ReportModal";
 import TransactionSearchBar from "../components/TransactionSearchBar";
 import DateRangeFilterModal from "../components/DateRangeFilterModal";
+import FilterSummaryCard from "../components/FilterSummaryCard";
 
 type BankTab = "transfers" | "contributions";
 
@@ -65,6 +66,18 @@ export default function BalanceScreen() {
     }
     return list;
   }, [allTransactions, transferDateFilter, transferSearch]);
+
+  // Deposits and withdrawals move money in opposite directions, so the
+  // filter summary's "total" is the net change, with the split shown too.
+  const transferTotals = useMemo(() => {
+    let deposits = 0;
+    let withdrawals = 0;
+    for (const t of transactions) {
+      if (t.type === "deposit") deposits += t.amount;
+      else withdrawals += t.amount;
+    }
+    return { deposits, withdrawals, net: deposits - withdrawals };
+  }, [transactions]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest(`/api/bank-transactions/${id}`, { method: "DELETE" }),
@@ -130,6 +143,15 @@ export default function BalanceScreen() {
             hasActiveFilter={!!transferDateFilter}
             placeholder="Search transfers by reason"
           />
+          {transferDateFilter && (
+            <FilterSummaryCard
+              from={transferDateFilter.from}
+              to={transferDateFilter.to}
+              count={transactions.length}
+              totalAmount={transferTotals.net}
+              breakdown={`Deposits: ${formatCurrency(transferTotals.deposits)} · Withdrawals: ${formatCurrency(transferTotals.withdrawals)}`}
+            />
+          )}
           <FlatList
             style={{ flex: 1 }}
             data={transactions}
